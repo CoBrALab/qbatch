@@ -22,13 +22,13 @@ if __name__ == "__main__":
                         help="Number of input lines to run in a single job")
     parser.add_argument("-j", default=8, type=int,
                         help="Number of commands to run in parallel per job")
-    parser.add_argument("-b", default="sge",
+    parser.add_argument("-b", default="pbs",
                         choices=['pbs', 'sge'], help="Queueing system to use")
     parser.add_argument("-n", action="store_true",
                         help="Dry run; nothing is submitted")
     parser.add_argument("--nodes", default=1, type=int,
                         help="Nodes to request per job")
-    parser.add_argument("--ppn", default=8, type=int,
+    parser.add_argument("--ppn", default=12, type=int,
                         help="Processors per node")
 
     args = parser.parse_args()
@@ -63,14 +63,14 @@ if __name__ == "__main__":
     shebang = '#!/bin/bash -l'
 
     if system == 'pbs':
-        header = '\n'.join(
+        header = '\n'.join([
             "{shebang}",
-            "#$ nodes={nodes}:ppn={ppn}",
-            "#$ {options}",
-            "#$ -V",
-            "#$ -d {workdir}",
-            "#$ {array}",
-            "ARRAY_IND=PBS_ARRAYID").format(
+            "#PBS -l nodes={nodes}:ppn={ppn}",
+            "#PBS -V",
+            "#PBS -d {workdir}",
+            "#PBS {options}",
+            "#PBS {array}",
+            "ARRAY_IND=PBS_ARRAYID"]).format(
             nodes=nodes,
             ppn=ppn,
             shebang=shebang,
@@ -78,14 +78,14 @@ if __name__ == "__main__":
             options=' '.join(qsub_options),
             array=use_array and '-t 1-' + str(num_jobs) or '')
     elif system == 'sge':
-        header = '\n'.join(
+        header = '\n'.join([
             "{shebang}",
-            "#$ nodes={nodes}:ppn={ppn}",
-            "#$ {options}",
+            "#$ -l nodes={nodes}:ppn={ppn}",
             "#$ -V",
             "#$ -wd {workdir}",
+            "#$ {options}",
             "#$ {array}",
-            "ARRAY_IND=SGE_TASK_ID").format(
+            "ARRAY_IND=SGE_TASK_ID"]).format(
             nodes=nodes,
             ppn=ppn,
             shebang=shebang,
