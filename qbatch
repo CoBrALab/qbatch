@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import argparse
 import math
 import os
@@ -11,6 +10,7 @@ import sys
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Submit commands to a queueing system")
     parser.add_argument('command_file', help="An input file containing a list of commands. Use - for stdin")
+    parser.add_argument("positional", nargs='*', help="Options to pass directly to qsub")
     parser.add_argument("-o", default='', help="Quoted string of options to pass to qsub")
     parser.add_argument("-w", default=os.getcwd(), help="Job working directory")
     parser.add_argument("-i", action="store_true", help="Use individual jobs instead of an array job")
@@ -18,17 +18,21 @@ if __name__ == "__main__":
     parser.add_argument("-j", default=8, type=int, help="Number of commands to run in parallel per job")
     parser.add_argument("-b", default="sge", choices=['pbs','sge'], help="Queueing system to use")
     parser.add_argument("-n", action="store_true", help="Dry run; nothing is submitted")
+    parser.add_argument("--nodes", default=1, type=int, help="Nodes to request per job")
+    parser.add_argument("--ppn", default=8, type=int, help="Processors per node")
 
     args = parser.parse_args()
 
     command_file = args.command_file
     qsub_options = args.o
     job_workdir = args.w
-    use_individual = args.i
+    use_array = not args.i
     chunk_size  = args.c
     ncores = args.j
     system = args.b
     dry_run = args.n 
+    nodes = args.nodes
+    ppn = args.ppn
 
     # read in commands
     job_name = None
@@ -49,30 +53,37 @@ if __name__ == "__main__":
     shebang = '#!/bin/bash -l' 
 
     if system == 'pbs': 
-        header = shebang + '\n'
-        options = ['-V', '-d ' + job_workdir, qsub_options] 
-        if not use_individual:
-            options += ['-t 1-'+str(num_jobs)]
-        header += '#PBS ' + '\n#PBS '.join(options) + '\n'
-        header += 'ARRAY_IND=PBS_ARRAYID\n'
-
+        header = "{shebang}"
+                 "#$ nodes={nodes}:ppn={ppn}"
+                 "#$ {options}"
+                 "#$ -V"
+                 "#$ -d {workdir}"
+                 "#$ {array}"
+                 "ARRAY_IND=PBS_ARRAYID".format(
+                    nodes=nodes,
+                    ppn=ppn,
+                    shebang=shebang, 
+                    workdir=job_workdir,
+                    options=' '.join(qsub_options), 
+                    array = use_array and '-t 1-'+str(num_jobs)) or ''
     elif system == 'sge':
-        header = """{shebang}
-        #$ -V
-        #$ -wd {workdir}
-        #$ {options}
-        #$
-        """
-        header = shebang + '\n'
-        options = ['#', '-V', '-wd ' + job_workdir, qsub_options] 
-        if not use_individual:
-            options += ['-t 1-'+str(num_jobs)]
-        header += '#$ ' + '\n#$ '.join(options) + '\n'
-        header += 'ARRAY_IND=SGE_TASK_ID\n'
+        header = "{shebang}"
+                 "#$ nodes={nodes}:ppn={ppn}"
+                 "#$ {options}"
+                 "#$ -V"
+                 "#$ -wd {workdir}"
+                 "#$ {array}"
+                 "ARRAY_IND=SGE_TASK_ID".format(
+                    nodes=nodes,
+                    ppn=ppn,
+                    shebang=shebang, 
+                    workdir=job_workdir,
+                    options=' '.join(qsub_options), 
+                    array = use_array and '-t 1-'+str(num_jobs)) or ''
       
     # emit job scripts
     job_scripts = []
-    if not use_individual:
+    if use_array:
         script_lines = [
                 header,
                 'sed -n "$(( (${{ARRAY_IND}}-1)*{size}+1)),+$(({size}-1))p" ' 
@@ -88,13 +99,11 @@ if __name__ == "__main__":
     else: 
         for chunk in range(num_jobs):
             scriptfile="{}.{}".format(job_name, chunk)
-      
             script_lines = [
                     header,
                     "parallel -j{} << EOF".format(ncores), 
                     ''.join(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size]),
                     'EOF']
-
             script = open(scriptfile, "w") 
             script.write('\n'.join(script_lines))
             script.close()
