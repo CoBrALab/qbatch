@@ -7,9 +7,16 @@ import subprocess
 import stat
 import sys
 
+# setup defaults (let environment override)
+PPN = os.environ.get("QBATCH_PPN", 12)
+NODES = os.environ.get("QBATCH_NODES", 1)
+SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
+CORES = os.environ.get("QBATCH_CORES", PPN)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Submit commands to a queueing system")
+        description="Submit commands to a queueing system",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("command_file", 
                         help="An input file containing a list of commands. Use - for stdin")
     parser.add_argument("opts", nargs='*',
@@ -20,16 +27,16 @@ if __name__ == "__main__":
                         help="Use individual jobs instead of an array job")
     parser.add_argument("-c", default=1, type=int,
                         help="Number of input lines to run in a single job")
-    parser.add_argument("-j", default=8, type=int,
+    parser.add_argument("-j", default=CORES, type=int,
                         help="Number of commands to run in parallel per job")
-    parser.add_argument("-b", default="pbs",
+    parser.add_argument("-b", default=SYSTEM,
                         choices=['pbs', 'sge'], help="Queueing system to use")
+    parser.add_argument("--nodes", default=NODES, type=int,
+                        help="Nodes to request per job")
+    parser.add_argument("--ppn", default=PPN, type=int,
+                        help="Processors per node")
     parser.add_argument("-n", action="store_true",
                         help="Dry run; nothing is submitted")
-    parser.add_argument("--nodes", default=1, type=int,
-                        help="Nodes to request per job")
-    parser.add_argument("--ppn", default=12, type=int,
-                        help="Processors per node")
 
     args = parser.parse_args()
 
