@@ -8,29 +8,39 @@ import stat
 import sys
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Submit commands to a queueing system")
-    parser.add_argument('command_file', help="An input file containing a list of commands. Use - for stdin")
-    parser.add_argument("positional", nargs='*', help="Options to pass directly to qsub")
-    parser.add_argument("-o", default='', help="Quoted string of options to pass to qsub")
-    parser.add_argument("-w", default=os.getcwd(), help="Job working directory")
-    parser.add_argument("-i", action="store_true", help="Use individual jobs instead of an array job")
-    parser.add_argument("-c", default=1, type=int, help="Number of input lines to run in a single job")
-    parser.add_argument("-j", default=8, type=int, help="Number of commands to run in parallel per job")
-    parser.add_argument("-b", default="sge", choices=['pbs','sge'], help="Queueing system to use")
-    parser.add_argument("-n", action="store_true", help="Dry run; nothing is submitted")
-    parser.add_argument("--nodes", default=1, type=int, help="Nodes to request per job")
-    parser.add_argument("--ppn", default=8, type=int, help="Processors per node")
+    parser = argparse.ArgumentParser(
+        description="Submit commands to a queueing system")
+    parser.add_argument("command_file", 
+                        help="An input file containing a list of commands. Use - for stdin")
+    parser.add_argument("opts", nargs='*',
+                        help="Options to pass directly to qsub")
+    parser.add_argument("-w", default=os.getcwd(),
+                        help="Job working directory")
+    parser.add_argument("-i", action="store_true",
+                        help="Use individual jobs instead of an array job")
+    parser.add_argument("-c", default=1, type=int,
+                        help="Number of input lines to run in a single job")
+    parser.add_argument("-j", default=8, type=int,
+                        help="Number of commands to run in parallel per job")
+    parser.add_argument("-b", default="sge",
+                        choices=['pbs', 'sge'], help="Queueing system to use")
+    parser.add_argument("-n", action="store_true",
+                        help="Dry run; nothing is submitted")
+    parser.add_argument("--nodes", default=1, type=int,
+                        help="Nodes to request per job")
+    parser.add_argument("--ppn", default=8, type=int,
+                        help="Processors per node")
 
     args = parser.parse_args()
 
     command_file = args.command_file
-    qsub_options = args.o
+    qsub_options = args.opts
     job_workdir = args.w
     use_array = not args.i
-    chunk_size  = args.c
+    chunk_size = args.c
     ncores = args.j
     system = args.b
-    dry_run = args.n 
+    dry_run = args.n
     nodes = args.nodes
     ppn = args.ppn
 
@@ -39,8 +49,8 @@ if __name__ == "__main__":
 
     if command_file == '-':
         job_name = job_name or 'STDIN'
-        task_list =  sys.stdin.readlines()
-    else: 
+        task_list = sys.stdin.readlines()
+    else:
         task_list = open(command_file).readlines()
 
     job_name = job_name or os.path.basename(command_file)
@@ -49,68 +59,73 @@ if __name__ == "__main__":
     # the array job
     num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
 
-    # make script header 
-    shebang = '#!/bin/bash -l' 
+    # make script header
+    shebang = '#!/bin/bash -l'
 
-    if system == 'pbs': 
-        header = "{shebang}"
-                 "#$ nodes={nodes}:ppn={ppn}"
-                 "#$ {options}"
-                 "#$ -V"
-                 "#$ -d {workdir}"
-                 "#$ {array}"
-                 "ARRAY_IND=PBS_ARRAYID".format(
-                    nodes=nodes,
-                    ppn=ppn,
-                    shebang=shebang, 
-                    workdir=job_workdir,
-                    options=' '.join(qsub_options), 
-                    array = use_array and '-t 1-'+str(num_jobs)) or ''
+    if system == 'pbs':
+        header = '\n'.join(
+            "{shebang}",
+            "#$ nodes={nodes}:ppn={ppn}",
+            "#$ {options}",
+            "#$ -V",
+            "#$ -d {workdir}",
+            "#$ {array}",
+            "ARRAY_IND=PBS_ARRAYID").format(
+            nodes=nodes,
+            ppn=ppn,
+            shebang=shebang,
+            workdir=job_workdir,
+            options=' '.join(qsub_options),
+            array=use_array and '-t 1-' + str(num_jobs) or '')
     elif system == 'sge':
-        header = "{shebang}"
-                 "#$ nodes={nodes}:ppn={ppn}"
-                 "#$ {options}"
-                 "#$ -V"
-                 "#$ -wd {workdir}"
-                 "#$ {array}"
-                 "ARRAY_IND=SGE_TASK_ID".format(
-                    nodes=nodes,
-                    ppn=ppn,
-                    shebang=shebang, 
-                    workdir=job_workdir,
-                    options=' '.join(qsub_options), 
-                    array = use_array and '-t 1-'+str(num_jobs)) or ''
-      
+        header = '\n'.join(
+            "{shebang}",
+            "#$ nodes={nodes}:ppn={ppn}",
+            "#$ {options}",
+            "#$ -V",
+            "#$ -wd {workdir}",
+            "#$ {array}",
+            "ARRAY_IND=SGE_TASK_ID").format(
+            nodes=nodes,
+            ppn=ppn,
+            shebang=shebang,
+            workdir=job_workdir,
+            options=' '.join(qsub_options),
+            array=use_array and '-t 1-' + str(num_jobs) or '')
+
     # emit job scripts
     job_scripts = []
     if use_array:
         script_lines = [
-                header,
-                'sed -n "$(( (${{ARRAY_IND}}-1)*{size}+1)),+$(({size}-1))p" ' 
-                  '<< EOF | parallel -j{ncores} '.format(ncores=ncores,size=chunk_size), 
-                ''.join(task_list),
-                'EOF']
+            header,
+            'sed -n "$(( (${{ARRAY_IND}}-1)*{size}+1)),+$(({size}-1))p" '
+            '<< EOF | parallel -j{ncores} '.format(
+                ncores=ncores, size=chunk_size),
+            ''.join(task_list),
+            'EOF']
 
         scriptfile = job_name + ".array"
         script = open(scriptfile, 'w')
         script.write('\n'.join(script_lines))
         script.close()
         job_scripts.append(scriptfile)
-    else: 
+    else:
         for chunk in range(num_jobs):
-            scriptfile="{}.{}".format(job_name, chunk)
+            scriptfile = "{}.{}".format(job_name, chunk)
             script_lines = [
-                    header,
-                    "parallel -j{} << EOF".format(ncores), 
-                    ''.join(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size]),
-                    'EOF']
-            script = open(scriptfile, "w") 
+                header,
+                "parallel -j{} << EOF".format(ncores),
+                ''.join(task_list[chunk * chunk_size:chunk *
+                                  chunk_size + chunk_size]),
+                'EOF']
+            script = open(scriptfile, "w")
             script.write('\n'.join(script_lines))
             script.close()
             job_scripts.append(scriptfile)
-   
+
     # execute the job script(s)
     for script in job_scripts:
         os.chmod(scriptfile, os.stat(scriptfile).st_mode | stat.S_IXUSR)
-        if dry_run: continue
+        if dry_run:
+            continue
         subprocess.call(['qsub', script])
