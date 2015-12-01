@@ -34,7 +34,7 @@ if __name__ == "__main__":
     job_name = None
 
     if command_file == '-':
-        job_name = 'STDIN'
+        job_name = job_name or 'STDIN'
         task_list =  sys.stdin.readlines()
     else: 
         task_list = open(command_file).readlines()
@@ -45,28 +45,37 @@ if __name__ == "__main__":
     # the array job
     num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
 
-    # make options comment block
-    options_comment = ''
-    if system == 'pbs': 
-      options = ['#', '-V', '-d ' + job_workdir, qsub_options] 
-      if not use_individual:
-          options += ['-t 1-'+str(num_jobs)]
-      options_comment = '\n#PBS '.join(options)
-    elif system == 'sge':
-      options = ['#', '-V', '-wd ' + job_workdir, qsub_options] 
-      if not use_individual:
-          options += ['-t 1-'+str(num_jobs)]
-      options_comment = '\n#$ '.join(options)
-      
-    shebang = '#!/bin/bash' 
+    # make script header 
+    shebang = '#!/bin/bash -l' 
 
+    if system == 'pbs': 
+        header = shebang + '\n'
+        options = ['-V', '-d ' + job_workdir, qsub_options] 
+        if not use_individual:
+            options += ['-t 1-'+str(num_jobs)]
+        header += '#PBS ' + '\n#PBS '.join(options) + '\n'
+        header += 'ARRAY_IND=PBS_ARRAYID\n'
+
+    elif system == 'sge':
+        header = """{shebang}
+        #$ -V
+        #$ -wd {workdir}
+        #$ {options}
+        #$
+        """
+        header = shebang + '\n'
+        options = ['#', '-V', '-wd ' + job_workdir, qsub_options] 
+        if not use_individual:
+            options += ['-t 1-'+str(num_jobs)]
+        header += '#$ ' + '\n#$ '.join(options) + '\n'
+        header += 'ARRAY_IND=SGE_TASK_ID\n'
+      
     # emit job scripts
     job_scripts = []
     if not use_individual:
         script_lines = [
-                shebang, 
-                options_comment,
-                'sed -n "$(( (${{SGE_TASK_ID}}-1)*{size}+1)),+$(({size}-1))p" ' 
+                header,
+                'sed -n "$(( (${{ARRAY_IND}}-1)*{size}+1)),+$(({size}-1))p" ' 
                   '<< EOF | parallel -j{ncores} '.format(ncores=ncores,size=chunk_size), 
                 ''.join(task_list),
                 'EOF']
@@ -81,8 +90,7 @@ if __name__ == "__main__":
             scriptfile="{}.{}".format(job_name, chunk)
       
             script_lines = [
-                    shebang, 
-                    options_comment,
+                    header,
                     "parallel -j{} << EOF".format(ncores), 
                     ''.join(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size]),
                     'EOF']
