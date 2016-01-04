@@ -101,16 +101,6 @@ if __name__ == "__main__":
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=matching_jobids and '#PBS -W depend=afterok:' + ':'.join(matching_jobids) or '')
     elif system == 'sge':
-        matching_jobids = []
-        if afterok_pattern:
-            o = subprocess.check_output('sge_jobnames')
-
-            for row in o.strip().split("\n"):
-                if not row.strip(): # skip empty lines
-                    continue
-                jobid, name = row.split()
-                if fnmatch.fnmatch(name, options.afterok_pattern):
-                    matching_jobids.append(jobid)
 
         header = '\n'.join([
             "{shebang}",
@@ -127,7 +117,7 @@ if __name__ == "__main__":
             workdir=job_workdir,
             options=' '.join(qsub_options),
             array=use_array and '-t 1-' + str(num_jobs) or '',
-            dependencies=matching_jobids and '#$ -hold_jid ' + ','.join(matching_jobids) or '')
+            dependencies=afterok_pattern and '#$ -hold_jid ' + afterok_pattern or '')
 
     # emit job scripts
     job_scripts = []
