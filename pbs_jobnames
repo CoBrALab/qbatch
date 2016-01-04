@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+#Stolen from https://stackoverflow.com/questions/26104116/qstat-and-long-job-names
+import os
+import sys
+import xml.etree.ElementTree as ET
+f = os.popen('qstat -x')
+try:
+    tree = ET.parse(f)
+except:
+    sys.exit()
+root = tree.getroot()
+
+for job in root:
+  print job.find('Job_Id').text, " ",
+  print job.find('Job_Name').text

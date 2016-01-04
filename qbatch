@@ -6,6 +6,7 @@ import os.path
 import subprocess
 import stat
 import sys
+import fnmatch
 
 # setup defaults (let environment override)
 PPN = os.environ.get("QBATCH_PPN", 12)
@@ -17,7 +18,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Submit commands to a queueing system",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("command_file", 
+    parser.add_argument("command_file",
                         help="An input file containing a list of commands. Use - for stdin")
     parser.add_argument("opts", nargs='*',
                         help="Options to pass directly to qsub")
@@ -37,6 +38,8 @@ if __name__ == "__main__":
                         help="Processors per node")
     parser.add_argument("-n", action="store_true",
                         help="Dry run; nothing is submitted")
+    parser.add_argument("--afterok_pattern", action="append",
+                        help="Existing jobs matching the given pattern as dependencies.")
 
     args = parser.parse_args()
 
@@ -50,6 +53,7 @@ if __name__ == "__main__":
     dry_run = args.n
     nodes = args.nodes
     ppn = args.ppn
+    afterok_pattern = args.afterok_pattern
 
     # read in commands
     job_name = None
@@ -70,6 +74,16 @@ if __name__ == "__main__":
     shebang = '#!/bin/bash -l'
 
     if system == 'pbs':
+        matching_jobids = []
+        if afterok_pattern:
+            o = subprocess.check_output('pbs_jobnames')
+            for row in o.strip().split("\n"):
+                if not row.strip(): # skip empty lines
+                    continue
+                jobid, name = row.split()
+                if fnmatch.fnmatch(name, options.afterok_pattern):
+                    matching_jobids.append(jobid)
+
         header = '\n'.join([
             "{shebang}",
             "#PBS -l nodes={nodes}:ppn={ppn}",
@@ -77,14 +91,17 @@ if __name__ == "__main__":
             "#PBS -d {workdir}",
             "#PBS {options}",
             "#PBS {array}",
+            "{dependencies}",
             "ARRAY_IND=PBS_ARRAYID"]).format(
             nodes=nodes,
             ppn=ppn,
             shebang=shebang,
             workdir=job_workdir,
             options=' '.join(qsub_options),
-            array=use_array and '-t 1-' + str(num_jobs) or '')
+            array=use_array and '-t 1-' + str(num_jobs) or '',
+            dependencies=matching_jobids and '#PBS -W depend=afterok:' + ':'.join(matching_jobids) or '')
     elif system == 'sge':
+
         header = '\n'.join([
             "{shebang}",
             "#$ -l nodes={nodes}:ppn={ppn}",
@@ -92,13 +109,15 @@ if __name__ == "__main__":
             "#$ -wd {workdir}",
             "#$ {options}",
             "#$ {array}",
+            "{dependencies}",
             "ARRAY_IND=SGE_TASK_ID"]).format(
             nodes=nodes,
             ppn=ppn,
             shebang=shebang,
             workdir=job_workdir,
             options=' '.join(qsub_options),
-            array=use_array and '-t 1-' + str(num_jobs) or '')
+            array=use_array and '-t 1-' + str(num_jobs) or '',
+            dependencies=afterok_pattern and '#$ -hold_jid ' + afterok_pattern or '')
 
     # emit job scripts
     job_scripts = []
