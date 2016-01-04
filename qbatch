@@ -87,14 +87,13 @@ if __name__ == "__main__":
     elif system == 'sge':
         header = '\n'.join([
             "{shebang}",
-            "#$ -l nodes={nodes}:ppn={ppn}",
+            "{ppn}",
             "#$ -V",
             "#$ -wd {workdir}",
             "#$ {options}",
             "#$ {array}",
             "ARRAY_IND=SGE_TASK_ID"]).format(
-            nodes=nodes,
-            ppn=ppn,
+            ppn=(ppn > 1) and '#$ -pe smp ' + ppn or '',
             shebang=shebang,
             workdir=job_workdir,
             options=' '.join(qsub_options),
