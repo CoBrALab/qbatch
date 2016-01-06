@@ -81,7 +81,7 @@ if __name__ == "__main__":
                 if not row.strip(): # skip empty lines
                     continue
                 jobid, name = row.split()
-                if fnmatch.fnmatch(name, options.afterok_pattern):
+                if fnmatch.fnmatch(name, afterok_pattern):
                     matching_jobids.append(jobid)
 
         header = '\n'.join([
