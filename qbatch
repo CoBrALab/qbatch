@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     # execute the job script(s)
     for script in job_scripts:
-        os.chmod(scriptfile, os.stat(scriptfile).st_mode | stat.S_IXUSR)
+        os.chmod(script, os.stat(script).st_mode | stat.S_IXUSR)
         if dry_run:
             continue
         subprocess.call(['qsub', script])
