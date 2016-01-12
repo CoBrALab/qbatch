@@ -15,6 +15,26 @@ NODES = os.environ.get("QBATCH_NODES", 1)
 SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
 CORES = os.environ.get("QBATCH_CORES", PPN)
 
+#Stolen from http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html
+def run_command(command, logfile=None):
+    process = subprocess.Popen(command, stdout=subprocess.PIPE)
+    if logfile:
+        filehandle = open(logfile, 'w')
+    while True:
+        output = process.stdout.readline()
+        if output == '' and process.poll() is not None:
+            break
+        if output and logfile:
+            print output.strip()
+            filehandle.write(output.strip())
+            filehandle.write('\n')
+        elif output:
+            print output.strip()
+    rc = process.poll()
+    if logfile:
+        filehandle.close()
+    return rc
+
 def mkdirp(*p):
     """Like mkdir -p"""
     path = os.path.join(*p)
@@ -44,7 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("-j", default=CORES, type=int,
                         help="Number of commands to run in parallel per job")
     parser.add_argument("-b", default=SYSTEM,
-                        choices=['pbs', 'sge'], help="Queueing system to use")
+                        choices=['pbs', 'sge', 'local'], help="Queueing system to use")
     parser.add_argument("--nodes", default=NODES, type=int,
                         help="Nodes to request per job")
     parser.add_argument("--ppn", default=PPN, type=int,
@@ -86,10 +106,17 @@ if __name__ == "__main__":
 
     # compute the number of jobs needed. This will be the number of elements in
     # the array job
-    num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
-    if num_jobs == 0:
+
+    if len(task_list) == 0:
         print >>sys.stderr, "No jobs to submit, exiting"
         exit(0)
+
+    if system == 'local':
+        use_array = False
+        num_jobs = 1
+        chunk_size= sys.maxsize
+    else:
+        num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
 
     # make script header
     shebang = '#!/bin/bash -l'
@@ -144,6 +171,13 @@ if __name__ == "__main__":
             options=' '.join(qsub_options),
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=afterok_pattern and '#$ -hold_jid ' + afterok_pattern or '')
+    elif system == 'local':
+
+        header = '\n'.join([
+            "{shebang}",
+            "cd {workdir}"]).format(
+            shebang=shebang,
+            workdir=job_workdir)
 
     # emit job scripts
     job_scripts = []
@@ -181,4 +215,8 @@ if __name__ == "__main__":
         os.chmod(script, os.stat(script).st_mode | stat.S_IXUSR)
         if dry_run:
             continue
-        subprocess.call(['qsub', script])
+        if system == 'sge' or system == 'pbs':
+            subprocess.call(['qsub', script])
+        else:
+            print "Launching Local Jobscript, saving output to logdir/{}.log".format(job_name)
+            run_command(script, logfile="{}.log".format(job_name))
