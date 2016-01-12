@@ -100,7 +100,7 @@ if __name__ == "__main__":
             workdir=job_workdir,
             options=' '.join(qsub_options),
             array=use_array and '-t 1-' + str(num_jobs) or '',
-            dependencies=matching_jobids and '#PBS -W depend=afterok:' + ':'.join(matching_jobids) or '')
+            dependencies=matching_jobids and ('#PBS -W depend=' + (use_array and 'afterokarray:' or 'afterok:') + ':'.join(matching_jobids)) or '')
     elif system == 'sge':
 
         header = '\n'.join([
