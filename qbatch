@@ -7,6 +7,7 @@ import subprocess
 import stat
 import sys
 import fnmatch
+import errno
 
 # setup defaults (let environment override)
 PPN = os.environ.get("QBATCH_PPN", 12)
