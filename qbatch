@@ -14,6 +14,18 @@ NODES = os.environ.get("QBATCH_NODES", 1)
 SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
 CORES = os.environ.get("QBATCH_CORES", PPN)
 
+def mkdirp(*p):
+    """Like mkdir -p"""
+    path = os.path.join(*p)
+
+    try:
+        os.makedirs(path)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST:
+            pass
+        else: raise
+    return path
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Submit commands to a queueing system",
@@ -120,6 +132,7 @@ if __name__ == "__main__":
 
     # emit job scripts
     job_scripts = []
+    mkdirp(".scripts")
     if use_array:
         script_lines = [
             header,
@@ -129,14 +142,14 @@ if __name__ == "__main__":
             ''.join(task_list),
             'EOF']
 
-        scriptfile = job_name + ".array"
+        scriptfile = ".scripts/" + job_name + ".array"
         script = open(scriptfile, 'w')
         script.write('\n'.join(script_lines))
         script.close()
         job_scripts.append(scriptfile)
     else:
         for chunk in range(num_jobs):
-            scriptfile = "{}.{}".format(job_name, chunk)
+            scriptfile = ".scripts/" + "{}.{}".format(job_name, chunk)
             script_lines = [
                 header,
                 "parallel -j{} << EOF".format(ncores),
