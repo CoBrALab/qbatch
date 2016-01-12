@@ -93,7 +93,7 @@ if __name__ == "__main__":
             "#$ {options}",
             "#$ {array}",
             "ARRAY_IND=SGE_TASK_ID"]).format(
-            ppn=(ppn > 1) and '#$ -pe smp ' + ppn or '',
+            ppn=(ppn > 1) and '#$ -pe smp ' + str(ppn) or '',
             shebang=shebang,
             workdir=job_workdir,
             options=' '.join(qsub_options),
