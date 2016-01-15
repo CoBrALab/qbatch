@@ -55,6 +55,9 @@ if __name__ == "__main__":
                         help="Dry run; nothing is submitted")
     parser.add_argument("--afterok_pattern", action="append",
                         help="Existing jobs matching the given pattern as dependencies.")
+    parser.add_argument("--jobname", action="store",
+                        help="Override default job name generated from command_file, or set name for STDIN jobs")
+
 
     args = parser.parse_args()
 
@@ -70,10 +73,9 @@ if __name__ == "__main__":
     ppn = args.ppn
     afterok_pattern = args.afterok_pattern
     highmem = args.highmem
+    job_name = args.jobname
 
     # read in commands
-    job_name = None
-
     if command_file == '-':
         job_name = job_name or 'STDIN'
         task_list = sys.stdin.readlines()
@@ -109,6 +111,7 @@ if __name__ == "__main__":
             "#PBS -l nodes={nodes}{highmem}:ppn={ppn}",
             "#PBS -V",
             "#PBS -d {workdir}",
+            "#PBS -N {jobname}",
             "#PBS {options}",
             "#PBS {array}",
             "{dependencies}",
@@ -118,6 +121,7 @@ if __name__ == "__main__":
             ppn=ppn,
             shebang=shebang,
             workdir=job_workdir,
+            jobname=job_name,
             options=' '.join(qsub_options),
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=matching_jobids and ('#PBS -W depend=' + (use_array and 'afterokarray:' or 'afterok:') + ':'.join(matching_jobids)) or '')
@@ -128,6 +132,7 @@ if __name__ == "__main__":
             "{ppn}",
             "#$ -V",
             "#$ -wd {workdir}",
+            "#$ -N {jobname}",
             "#$ {options}",
             "#$ {array}",
             "{dependencies}",
@@ -135,6 +140,7 @@ if __name__ == "__main__":
             ppn=(ppn > 1) and '#$ -pe smp ' + str(ppn) or '',
             shebang=shebang,
             workdir=job_workdir,
+            jobname=job_name,
             options=' '.join(qsub_options),
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=afterok_pattern and '#$ -hold_jid ' + afterok_pattern or '')
