@@ -85,6 +85,9 @@ if __name__ == "__main__":
     # compute the number of jobs needed. This will be the number of elements in
     # the array job
     num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
+    if num_jobs == 0:
+        print >>sys.stderr, "No jobs to submit, exiting"
+        exit(0)
 
     # make script header
     shebang = '#!/bin/bash -l'
