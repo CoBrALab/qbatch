@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("command_file",
                         help="An input file containing a list of commands. Use - for stdin")
     parser.add_argument("opts", nargs='*',
-                        help="Options to pass directly to qsub")
+                        help="Quoted options to insert as header, in order, to job scripts. Can be qsub options, prepended with prefix characters, or commands to run at the begining of all jobs")
     parser.add_argument("-w", default=os.getcwd(),
                         help="Job working directory")
     parser.add_argument("-i", action="store_true",
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     command_file = args.command_file
-    qsub_options = args.opts
+    options = args.opts
     job_workdir = args.w
     use_array = not args.i
     chunk_size = args.c
@@ -112,9 +112,9 @@ if __name__ == "__main__":
             "#PBS -V",
             "#PBS -d {workdir}",
             "#PBS -N {jobname}",
-            "#PBS {options}",
             "#PBS {array}",
             "{dependencies}",
+            "{options}",
             "ARRAY_IND=PBS_ARRAYID"]).format(
             nodes=nodes,
             highmem=highmem and ':m32g' or '',
@@ -122,7 +122,7 @@ if __name__ == "__main__":
             shebang=shebang,
             workdir=job_workdir,
             jobname=job_name,
-            options=' '.join(qsub_options),
+            options='\n'.join(options),
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=matching_jobids and ('#PBS -W depend=' + (use_array and 'afterokarray:' or 'afterok:') + ':'.join(matching_jobids)) or '')
     elif system == 'sge':
@@ -133,15 +133,15 @@ if __name__ == "__main__":
             "#$ -V",
             "#$ -wd {workdir}",
             "#$ -N {jobname}",
-            "#$ {options}",
             "#$ {array}",
             "{dependencies}",
+            "{options}",
             "ARRAY_IND=SGE_TASK_ID"]).format(
             ppn=(ppn > 1) and '#$ -pe smp ' + str(ppn) or '',
             shebang=shebang,
             workdir=job_workdir,
             jobname=job_name,
-            options=' '.join(qsub_options),
+            options='\n'.join(options),
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=afterok_pattern and '#$ -hold_jid ' + afterok_pattern or '')
 
