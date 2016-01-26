@@ -17,7 +17,7 @@ CORES = os.environ.get("QBATCH_CORES", PPN)
 
 #Stolen from http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html
 def run_command(command, logfile=None):
-    process = subprocess.Popen(command, stdout=subprocess.PIPE)
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if logfile:
         filehandle = open(logfile, 'w')
     while True:
@@ -77,6 +77,8 @@ if __name__ == "__main__":
                         help="Existing jobs matching the given pattern as dependencies.")
     parser.add_argument("--jobname", action="store",
                         help="Override default job name generated from command_file, or set name for STDIN jobs")
+    parser.add_argument("--logdir", action="store", default=os.getcwd() + "/logs",
+                        help="Directory to save store log files from batch system or local processes")
 
 
     args = parser.parse_args()
@@ -94,6 +96,8 @@ if __name__ == "__main__":
     afterok_pattern = args.afterok_pattern
     highmem = args.highmem
     job_name = args.jobname
+    logdir = args.logdir
+    mkdirp(logdir)
 
     # read in commands
     if command_file == '-':
@@ -137,6 +141,8 @@ if __name__ == "__main__":
             "{shebang}",
             "#PBS -l nodes={nodes}{highmem}:ppn={ppn}",
             "#PBS -V",
+            "#PBS -j oe",
+            "#PBS -o {logdir}",
             "#PBS -d {workdir}",
             "#PBS -N {jobname}",
             "#PBS {options}",
@@ -147,6 +153,7 @@ if __name__ == "__main__":
             highmem=highmem and ':m32g' or '',
             ppn=ppn,
             shebang=shebang,
+            logdir=logdir,
             workdir=job_workdir,
             jobname=job_name,
             options=' '.join(qsub_options),
@@ -158,6 +165,8 @@ if __name__ == "__main__":
             "{shebang}",
             "{ppn}",
             "#$ -V",
+            "#$ -j y",
+            "#$ -o {logdir}",
             "#$ -wd {workdir}",
             "#$ -N {jobname}",
             "#$ {options}",
@@ -166,6 +175,7 @@ if __name__ == "__main__":
             "ARRAY_IND=SGE_TASK_ID"]).format(
             ppn=(ppn > 1) and '#$ -pe smp ' + str(ppn) or '',
             shebang=shebang,
+            logdir=logdir,
             workdir=job_workdir,
             jobname=job_name,
             options=' '.join(qsub_options),
@@ -218,5 +228,5 @@ if __name__ == "__main__":
         if system == 'sge' or system == 'pbs':
             subprocess.call(['qsub', script])
         else:
-            print "Launching Local Jobscript, saving output to logdir/{}.log".format(job_name)
-            run_command(script, logfile="{}.log".format(job_name))
+            print "Launching Local Jobscript, saving output to {}/{}.log".format(logdir, job_name)
+            run_command(script, logfile="{}/{}.log".format(logdir, job_name))
