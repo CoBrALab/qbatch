@@ -15,7 +15,9 @@ Submit commands to a queueing system
 positional arguments:
   command_file          An input file containing a list of commands. Use - for
                         STDIN
-  opts                  Options to pass directly to qsub (default: None)
+  opts                  Quoted options to insert as header, in order, to job scripts. 
+                        Can be qsub options, prepended with prefix characters, or commands
+                        to run at the begining of all jobs (default: None)
 
 optional arguments:
   -h, --help            show this help message and exit
