@@ -52,7 +52,7 @@ if __name__ == "__main__":
         description="Submit commands to a queueing system",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("command_file",
-                        help="An input file containing a list of commands. Use - for stdin")
+                        help="An input file containing a list of commands. Use - for STDIN")
     parser.add_argument("opts", nargs='*',
                         help="Quoted options to insert as header, in order, to job scripts. Can be qsub options, prepended with prefix characters, or commands to run at the begining of all jobs")
     parser.add_argument("-w", default=os.getcwd(),
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", action="store_true",
                         help="Use individual jobs instead of an array job")
     parser.add_argument("-c", default=1, type=int,
-                        help="Number of input lines to run in a single job")
+                        help="Number of input lines to chunk into a single job")
     parser.add_argument("-j", default=CORES, type=int,
                         help="Number of commands to run in parallel per job")
     parser.add_argument("-b", default=SYSTEM,
@@ -68,18 +68,17 @@ if __name__ == "__main__":
     parser.add_argument("--nodes", default=NODES, type=int,
                         help="Nodes to request per job")
     parser.add_argument("--ppn", default=PPN, type=int,
-                        help="Processors per node")
+                        help="Processors per node (ppn on PBS, parallel environment number on SGE)")
     parser.add_argument("--highmem", action="store_true",
-                        help="Submit to high memory nodes")
+                        help="(Scinet-only) Submit to high memory nodes")
     parser.add_argument("-n", action="store_true",
-                        help="Dry run; nothing is submitted")
+                        help="Dry run; nothing is submitted or run")
     parser.add_argument("--afterok_pattern", action="append",
-                        help="Existing jobs matching the given pattern as dependencies.")
+                        help="Wait for successful completion of job with name(s) matching glob pattern before starting")
     parser.add_argument("--jobname", action="store",
                         help="Override default job name generated from command_file, or set name for STDIN jobs")
     parser.add_argument("--logdir", action="store", default=os.getcwd() + "/logs",
                         help="Directory to save store log files from batch system or local processes")
-
 
     args = parser.parse_args()
 
