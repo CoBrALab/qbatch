@@ -8,7 +8,7 @@ Some examples:
 $ qbatch commands.txt
 
 # set the walltime 
-$ qbatch commands.txt -- -l walltime=3:00:00
+$ qbatch commands.txt -- '#PBS -l walltime=3:00:00'
 
 # run 24 commands per array element
 $ qbatch -c24 commands.txt
