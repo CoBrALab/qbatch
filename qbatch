@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
     if len(task_list) == 0:
         print >>sys.stderr, "No jobs to submit, exiting"
-        exit(0)
+        sys.exit()
 
     if system == 'local':
         use_array = False
@@ -225,7 +225,9 @@ if __name__ == "__main__":
         if dry_run:
             continue
         if system == 'sge' or system == 'pbs':
-            subprocess.call(['qsub', script])
+            return_code = subprocess.call(['qsub', script])
+            if return_code:
+                sys.exit("qsub call returned error")
         else:
             print "Launching Local Jobscript, saving output to {}/{}.log".format(logdir, job_name)
             run_command(script, logfile="{}/{}.log".format(logdir, job_name))
