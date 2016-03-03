@@ -53,8 +53,10 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("command_file",
                         help="An input file containing a list of commands. Use - for STDIN")
-    parser.add_argument("opts", nargs='*',
-                        help="Quoted options to insert as header, in order, to job scripts. Can be qsub options, prepended with prefix characters, or commands to run at the begining of all jobs")
+    parser.add_argument("-o", "--options", action="append", default=[],
+                        help='A string containing custom options passed directly to the queuing system.  For example, --options "-l vf=8G". This option can be given multiple times.')
+    parser.add_argument("--header", action="append", default=[],
+                        help="A string that will be inserted verbatim at the start of the script. This can be used to insert commands that will be run once per job. This option can be given multiple times.")
     parser.add_argument("-w", default=os.getcwd(),
                         help="Job working directory")
     parser.add_argument("-i", action="store_true",
@@ -83,7 +85,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     command_file = args.command_file
-    options = args.opts
+    options = args.options
+    header = args.header
     job_workdir = args.w
     use_array = not args.i
     chunk_size = args.c
@@ -145,8 +148,9 @@ if __name__ == "__main__":
             "#PBS -d {workdir}",
             "#PBS -N {jobname}",
             "#PBS {array}",
+            "#PBS {options}",
             "{dependencies}",
-            "{options}",
+            "{header}",
             "ARRAY_IND=PBS_ARRAYID"]).format(
             nodes=nodes,
             highmem=highmem and ':m32g' or '',
@@ -155,7 +159,8 @@ if __name__ == "__main__":
             logdir=logdir,
             workdir=job_workdir,
             jobname=job_name,
-            options='\n'.join(options),
+            options='\n#PBS '.join(options),
+            header='\n'.join(header),
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=matching_jobids and ('#PBS -W depend=' + (use_array and 'afterokarray:' or 'afterok:') + ':'.join(matching_jobids)) or '')
     elif system == 'sge':
@@ -169,15 +174,17 @@ if __name__ == "__main__":
             "#$ -wd {workdir}",
             "#$ -N {jobname}",
             "#$ {array}",
+            "#$ {options}",
             "{dependencies}",
-            "{options}",
+            "{header}",
             "ARRAY_IND=SGE_TASK_ID"]).format(
             ppn=(ppn > 1) and '#$ -pe smp ' + str(ppn) or '',
             shebang=shebang,
             logdir=logdir,
             workdir=job_workdir,
             jobname=job_name,
-            options='\n'.join(options),
+            options='\n#$ '.join(options),
+            header='\n'.join(header),
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=afterok_pattern and '#$ -hold_jid ' + afterok_pattern or '')
     elif system == 'local':
