@@ -80,9 +80,9 @@ if __name__ == "__main__":
                         command_file, or set name for STDIN jobs""")
     parser.add_argument("-n", action="store_true",
                         help="Dry run; nothing is submitted or run")
-    parser.add_argument("-w", default=os.getcwd(),
+    parser.add_argument("-w", "--workdir", default=os.getcwd(),
                         help="Job working directory")
-    parser.add_argument("--logdir", action="store", default=os.getcwd() + "/logs",
+    parser.add_argument("--logdir", action="store", default="{workdir}/logs",
                         help="""Directory to save store log files from batch
                         system or local processes""")
 
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     walltime = args.walltime
     options = args.options
     header_commands = args.header
-    job_workdir = args.w
+    job_workdir = args.workdir
     use_array = not args.i
     chunk_size = args.c
     ncores = args.j
@@ -137,7 +137,7 @@ if __name__ == "__main__":
     afterok_pattern = args.afterok_pattern
     highmem = args.highmem
     job_name = args.jobname
-    logdir = args.logdir
+    logdir = args.logdir.format(workdir=job_workdir)
     copy_env = not args.no_env
 
     mkdirp(logdir)
