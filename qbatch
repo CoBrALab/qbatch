@@ -16,6 +16,9 @@ SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
 CORES = os.environ.get("QBATCH_CORES", PPN)
 SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".scripts/")
 
+# environment vars to ignore when copying the environment to the job script
+IGNORE_ENV_VARS=['PWD']
+
 #Stolen from http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html
 def run_command(command, logfile=None):
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -114,7 +117,9 @@ if __name__ == "__main__":
                        'sge' both make calls to qsub to submit jobs. 'local'
                        runs the entire command list (without chunking)
                        directly.""")
-    
+    group.add_argument("--no-env", action="store_true",
+                       help="""Do not copy the current environment into the job
+                       script(s)""")
     args = parser.parse_args()
 
     command_file = args.command_file
@@ -133,6 +138,8 @@ if __name__ == "__main__":
     highmem = args.highmem
     job_name = args.jobname
     logdir = args.logdir
+    copy_env = not args.no_env
+
     mkdirp(logdir)
 
     # read in commands
@@ -146,7 +153,6 @@ if __name__ == "__main__":
 
     # compute the number of jobs needed. This will be the number of elements in
     # the array job
-
     if len(task_list) == 0:
         print >>sys.stderr, "No jobs to submit, exiting"
         sys.exit()
@@ -157,6 +163,14 @@ if __name__ == "__main__":
         chunk_size= sys.maxsize
     else:
         num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
+
+    # copy the current environment
+    env = ''
+    if copy_env:
+        env = '\n'.join(['{}="{}"'.format(k, v.replace('"',r'\"')) for \
+            k,v in os.environ.items() if k not in IGNORE_ENV_VARS])
+        env = env.replace("$","$$")
+        env = "# -- start copied env\n{}\n# -- end copied env".format(env)
 
     # make script header
     shebang = '#!/bin/bash -l'
@@ -176,7 +190,6 @@ if __name__ == "__main__":
         header = '\n'.join([
             "{shebang}",
             "#PBS -l nodes={nodes}{highmem}:ppn={ppn}",
-            "#PBS -V",
             "#PBS -j oe",
             "#PBS -o {logdir}",
             "#PBS -d {workdir}",
@@ -185,6 +198,7 @@ if __name__ == "__main__":
             "#PBS {options}",
             "{walltime}",
             "{dependencies}",
+            env,
             "{header_commands}",
             "ARRAY_IND=PBS_ARRAYID"]).format(
             nodes=nodes,
@@ -204,7 +218,6 @@ if __name__ == "__main__":
         header = '\n'.join([
             "{shebang}",
             "{ppn}",
-            "#$ -V",
             "#$ -j y",
             "#$ -o {logdir}",
             "#$ -wd {workdir}",
@@ -213,6 +226,7 @@ if __name__ == "__main__":
             "#$ {options}",
             "{walltime}",
             "{dependencies}",
+            env,
             "{header_commands}",
             "ARRAY_IND=SGE_TASK_ID"]).format(
             ppn=(ppn > 1) and '#$ -pe smp ' + str(ppn) or '',
@@ -229,6 +243,7 @@ if __name__ == "__main__":
     elif system == 'local':
         header = '\n'.join([
             "{shebang}",
+            env,
             "cd {workdir}"]).format(
             shebang=shebang,
             workdir=job_workdir)
