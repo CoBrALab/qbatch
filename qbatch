@@ -53,6 +53,7 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("command_file",
                         help="An input file containing a list of commands. Use - for STDIN")
+    parser.add_argument("-t", "--walltime", help='Maximum walltime for a job.')
     parser.add_argument("-o", "--options", action="append", default=[],
                         help='A string containing custom options passed directly to the queuing system.  For example, --options "-l vf=8G". This option can be given multiple times.')
     parser.add_argument("--header", action="append", default=[],
@@ -85,6 +86,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     command_file = args.command_file
+    walltime = args.walltime
     options = args.options
     header_commands = args.header
     job_workdir = args.w
@@ -149,6 +151,7 @@ if __name__ == "__main__":
             "#PBS -N {jobname}",
             "#PBS {array}",
             "#PBS {options}",
+            "{walltime}",
             "{dependencies}",
             "{header_commands}",
             "ARRAY_IND=PBS_ARRAYID"]).format(
@@ -160,6 +163,7 @@ if __name__ == "__main__":
             workdir=job_workdir,
             jobname=job_name,
             options='\n#PBS '.join(options),
+            walltime=walltime and "#PBS -l {}".format(walltime) or '',
             header_commands='\n'.join(header_commands),
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=matching_jobids and ('#PBS -W depend=' + (use_array and 'afterokarray:' or 'afterok:') + ':'.join(matching_jobids)) or '')
@@ -175,6 +179,7 @@ if __name__ == "__main__":
             "#$ -N {jobname}",
             "#$ {array}",
             "#$ {options}",
+            "{walltime}",
             "{dependencies}",
             "{header_commands}",
             "ARRAY_IND=SGE_TASK_ID"]).format(
@@ -184,6 +189,7 @@ if __name__ == "__main__":
             workdir=job_workdir,
             jobname=job_name,
             options='\n#$ '.join(options),
+            walltime=walltime and "#$ -h_rt={}".format(walltime) or '',
             header_commands='\n'.join(header_commands),
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=afterok_pattern and '#$ -hold_jid ' + afterok_pattern or '')
