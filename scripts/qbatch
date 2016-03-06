@@ -19,6 +19,45 @@ SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".scripts/")
 # environment vars to ignore when copying the environment to the job script
 IGNORE_ENV_VARS=['PWD','SGE_TASK_ID','PBS_ARRAYID','ARRAY_IND']
 
+PBS_HEADER_TEMPLATE= """
+{shebang}
+#PBS -l nodes={nodes}{highmem}:ppn={ppn}
+#PBS -j oe
+#PBS -o {logdir}
+#PBS -d {workdir}
+#PBS -N {job_name}
+#PBS {o_array}
+#PBS {o_walltime}
+#PBS {o_dependencies}
+#PBS {o_options}
+{env}
+{header_commands}
+ARRAY_IND=PBS_ARRAYID
+""".strip()
+
+SGE_HEADER_TEMPLATE= """
+{shebang}
+#$ {ppn}
+#$ -j y
+#$ -o {logdir}
+#$ -wd {workdir}
+#$ -N {job_name}
+#$ {o_array}
+#$ {o_walltime}
+#$ {o_dependencies}
+#$ {o_options}
+{env}
+{header_commands}
+ARRAY_IND=SGE_TASK_ID
+""".strip()
+
+LOCAL_TEMPLATE="""
+{shebang}
+{env}
+{header_commands}
+cd {workdir}
+""".strip()
+
 #Stolen from http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html
 def run_command(command, logfile=None):
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -93,7 +132,7 @@ if __name__ == "__main__":
                        help="""A string containing custom options passed
                        directly to the queuing system.  For example, --options
                        "-l vf=8G". This option can be given multiple times.""")
-    group.add_argument("--header", action="append", default=[],
+    group.add_argument("--header", action="append",
                        help="""A string that will be inserted verbatim at the
                        start of the script. This can be used to insert
                        commands that will be run once per job. This option can
@@ -127,8 +166,8 @@ if __name__ == "__main__":
     command_file = args.command_file
     walltime = args.walltime
     options = args.options
-    header_commands = args.header
-    job_workdir = args.workdir
+    header_commands = args.header and '\n'.join(args.header) or ''
+    workdir = args.workdir
     use_array = not args.i
     chunk_size = args.c
     ncores = args.j
@@ -137,9 +176,9 @@ if __name__ == "__main__":
     nodes = args.nodes
     ppn = args.ppn
     afterok_pattern = args.afterok_pattern
-    highmem = args.highmem
+    highmem = args.highmem and ':m32g' or ''
     job_name = args.jobname
-    logdir = args.logdir.format(workdir=job_workdir)
+    logdir = args.logdir.format(workdir=workdir)
     copy_env = not args.no_env
     verbose = args.v
 
@@ -189,67 +228,25 @@ if __name__ == "__main__":
                 for pattern in afterok_pattern:
                     if fnmatch.fnmatch(name, pattern):
                         matching_jobids.append(jobid)
-
-        header = '\n'.join([
-            "{shebang}",
-            "#PBS -l nodes={nodes}{highmem}:ppn={ppn}",
-            "#PBS -j oe",
-            "#PBS -o {logdir}",
-            "#PBS -d {workdir}",
-            "#PBS -N {jobname}",
-            "#PBS {array}",
-            "#PBS {options}",
-            "{walltime}",
-            "{dependencies}",
-            env,
-            "{header_commands}",
-            "ARRAY_IND=PBS_ARRAYID"]).format(
-            nodes=nodes,
-            highmem=highmem and ':m32g' or '',
-            ppn=ppn,
-            shebang=shebang,
-            logdir=logdir,
-            workdir=job_workdir,
-            jobname=job_name,
-            options='\n#PBS '.join(options),
-            walltime=walltime and "#PBS -l walltime={}".format(walltime) or '',
-            header_commands='\n'.join(header_commands),
-            array=use_array and '-t 1-' + str(num_jobs) or '',
-            dependencies=matching_jobids and ('#PBS -W depend=' + (use_array and 'afterokarray:' or 'afterok:') + ':'.join(matching_jobids)) or '')
+   
+        o_array = use_array and '-t 1-{}'.format(num_jobs) or ''
+        o_walltime = walltime and "-l {}".format(walltime) or ''
+        o_dependencies= matching_jobids and ('-W depend=' + 
+            (use_array and 'afterokarray:' or 'afterok:') + 
+            ':'.join(matching_jobids)) or ''
+        o_options='\n#PBS '.join(options)
+        header = PBS_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'sge':
-        header = '\n'.join([
-            "{shebang}",
-            "{ppn}",
-            "#$ -j y",
-            "#$ -o {logdir}",
-            "#$ -wd {workdir}",
-            "#$ -N {jobname}",
-            "#$ {array}",
-            "#$ {options}",
-            "{walltime}",
-            "{dependencies}",
-            env,
-            "{header_commands}",
-            "ARRAY_IND=SGE_TASK_ID"]).format(
-            ppn=(ppn > 1) and '#$ -pe smp ' + str(ppn) or '',
-            shebang=shebang,
-            logdir=logdir,
-            workdir=job_workdir,
-            jobname=job_name,
-            options='\n#$ '.join(options),
-            walltime=walltime and "#$ -h_rt={}".format(walltime) or '',
-            header_commands='\n'.join(header_commands),
-            array=use_array and '-t 1-' + str(num_jobs) or '',
-            dependencies=afterok_pattern and '#$ -hold_jid ' + afterok_pattern or '')
+        ppn = (ppn > 1) and '-pe smp {}'.format(ppn) or ''
+        o_array = use_array and '-t 1-{}'.format(num_jobs) or ''
+        o_walltime = walltime and "#$ -h_rt={}".format(walltime) or ''
+        o_dependencies = afterok_pattern and '-hold_jid ' + afterok_pattern or ''
+        o_options='\n#$ '.join(options)
+        header = SGE_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'local':
-        header = '\n'.join([
-            "{shebang}",
-            env,
-            "cd {workdir}"]).format(
-            shebang=shebang,
-            workdir=job_workdir)
+        header = LOCAL_TEMPLATE.format(**vars())
 
     # emit job scripts
     job_scripts = []
