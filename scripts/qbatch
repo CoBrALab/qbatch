@@ -167,7 +167,7 @@ if __name__ == "__main__":
     # copy the current environment
     env = ''
     if copy_env:
-        env = '\n'.join(['{}="{}"'.format(k, v.replace('"',r'\"')) for \
+        env = '\n'.join(['export {}="{}"'.format(k, v.replace('"',r'\"')) for \
             k,v in os.environ.items() if k not in IGNORE_ENV_VARS])
         env = env.replace("$","$$")
         env = "# -- start copied env\n{}\n# -- end copied env".format(env)
