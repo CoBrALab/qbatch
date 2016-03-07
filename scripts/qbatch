@@ -209,7 +209,7 @@ if __name__ == "__main__":
             workdir=job_workdir,
             jobname=job_name,
             options='\n#PBS '.join(options),
-            walltime=walltime and "#PBS -l {}".format(walltime) or '',
+            walltime=walltime and "#PBS -l walltime={}".format(walltime) or '',
             header_commands='\n'.join(header_commands),
             array=use_array and '-t 1-' + str(num_jobs) or '',
             dependencies=matching_jobids and ('#PBS -W depend=' + (use_array and 'afterokarray:' or 'afterok:') + ':'.join(matching_jobids)) or '')
