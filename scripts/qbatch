@@ -10,7 +10,7 @@ import fnmatch
 import errno
 
 # setup defaults (let environment override)
-PPN = os.environ.get("QBATCH_PPN", 12)
+PPN = os.environ.get("QBATCH_PPN", 8)
 NODES = os.environ.get("QBATCH_NODES", 1)
 SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
 CORES = os.environ.get("QBATCH_CORES", PPN)
