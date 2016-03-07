@@ -17,7 +17,7 @@ CORES = os.environ.get("QBATCH_CORES", PPN)
 SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".scripts/")
 
 # environment vars to ignore when copying the environment to the job script
-IGNORE_ENV_VARS=['PWD']
+IGNORE_ENV_VARS=['PWD','SGE_TASK_ID','PBS_ARRAYID','ARRAY_IND']
 
 #Stolen from http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html
 def run_command(command, logfile=None):
@@ -78,13 +78,14 @@ if __name__ == "__main__":
     parser.add_argument("-N", "--jobname", action="store",
                         help="""Override default job name generated from
                         command_file, or set name for STDIN jobs""")
-    parser.add_argument("-n", action="store_true",
-                        help="Dry run; nothing is submitted or run")
     parser.add_argument("-w", "--workdir", default=os.getcwd(),
                         help="Job working directory")
     parser.add_argument("--logdir", action="store", default="{workdir}/logs",
                         help="""Directory to save store log files from batch
                         system or local processes""")
+    parser.add_argument("-n", action="store_true",
+                        help="Dry run; nothing is submitted or run")
+    parser.add_argument("-v", action="store_true", help="Verbose output")
 
     group = parser.add_argument_group('advanced options')
     group.add_argument("-o", "--options", action="append", default=[],
@@ -139,6 +140,7 @@ if __name__ == "__main__":
     job_name = args.jobname
     logdir = args.logdir.format(workdir=job_workdir)
     copy_env = not args.no_env
+    verbose = args.v
 
     mkdirp(logdir)
 
@@ -290,5 +292,6 @@ if __name__ == "__main__":
             if return_code:
                 sys.exit("qsub call returned error")
         else:
-            print "Launching Local Jobscript, saving output to {}/{}.log".format(logdir, job_name)
+            if verbose: 
+                print "Launching Local Jobscript, saving output to {}/{}.log".format(logdir, job_name)
             run_command(script, logfile="{}/{}.log".format(logdir, job_name))

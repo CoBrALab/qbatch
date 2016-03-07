@@ -12,4 +12,5 @@ setup(
     url="https://github.com/pipitone/qbatch",
     scripts=["scripts/qbatch","scripts/pbs_jobnames"],
     long_description=open('README.md').read(),
+    setup_requires=['nose>=1.0'],
 )
