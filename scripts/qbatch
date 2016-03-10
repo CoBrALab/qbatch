@@ -17,9 +17,9 @@ CORES = os.environ.get("QBATCH_CORES", PPN)
 SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".scripts/")
 
 # environment vars to ignore when copying the environment to the job script
-IGNORE_ENV_VARS=['PWD','SGE_TASK_ID','PBS_ARRAYID','ARRAY_IND']
+IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND']
 
-PBS_HEADER_TEMPLATE= """
+PBS_HEADER_TEMPLATE = """
 {shebang}
 #PBS -l nodes={nodes}{highmem}:ppn={ppn}
 #PBS -j oe
@@ -35,7 +35,7 @@ PBS_HEADER_TEMPLATE= """
 ARRAY_IND=PBS_ARRAYID
 """.strip()
 
-SGE_HEADER_TEMPLATE= """
+SGE_HEADER_TEMPLATE = """
 {shebang}
 #$ {ppn}
 #$ -j y
@@ -51,16 +51,20 @@ SGE_HEADER_TEMPLATE= """
 ARRAY_IND=SGE_TASK_ID
 """.strip()
 
-LOCAL_TEMPLATE="""
+LOCAL_TEMPLATE = """
 {shebang}
 {env}
 {header_commands}
 cd {workdir}
 """.strip()
 
-#Stolen from http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html
+# Stolen from
+# http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html
+
+
 def run_command(command, logfile=None):
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    process = subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if logfile:
         filehandle = open(logfile, 'w')
     while True:
@@ -78,6 +82,7 @@ def run_command(command, logfile=None):
         filehandle.close()
     return rc
 
+
 def mkdirp(*p):
     """Like mkdir -p"""
     path = os.path.join(*p)
@@ -87,7 +92,8 @@ def mkdirp(*p):
     except OSError as exc:
         if exc.errno == errno.EEXIST:
             pass
-        else: raise
+        else:
+            raise
     return path
 
 if __name__ == "__main__":
@@ -105,7 +111,7 @@ if __name__ == "__main__":
                         'command' is simply a call to a command line program or
                         script. If no file is specified the command list is
                         read from STDIN.""")
-    parser.add_argument("-t", "--walltime", 
+    parser.add_argument("-t", "--walltime",
                         help="""Maximum walltime for an array job element or
                         individual job submitted""")
     parser.add_argument("-c", default=1, type=int,
@@ -153,7 +159,7 @@ if __name__ == "__main__":
     group.add_argument("-i", action="store_true",
                        help="Use individual jobs instead of an array job")
     group.add_argument("-b", default=SYSTEM,
-                       choices=['pbs', 'sge', 'local'], 
+                       choices=['pbs', 'sge', 'local'],
                        help="""The type of queueing system to use. 'pbs' and
                        'sge' both make calls to qsub to submit jobs. 'local'
                        runs the entire command list (without chunking)
@@ -202,16 +208,17 @@ if __name__ == "__main__":
     if system == 'local':
         use_array = False
         num_jobs = 1
-        chunk_size= sys.maxsize
+        chunk_size = sys.maxsize
     else:
         num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
 
     # copy the current environment
     env = ''
     if copy_env:
-        env = '\n'.join(['export {}="{}"'.format(k, v.replace('"',r'\"')) for \
-            k,v in os.environ.items() if k not in IGNORE_ENV_VARS])
-        env = env.replace("$","$$")
+        env = '\n'.join(['export {}="{}"'.format(k, v.replace('"', r'\"')) for
+                         k, v in os.environ.items()
+                         if k not in IGNORE_ENV_VARS])
+        env = env.replace("$", "$$")
         env = "# -- start copied env\n{}\n# -- end copied env".format(env)
 
     # make script header
@@ -225,27 +232,28 @@ if __name__ == "__main__":
             except subprocess.CalledProcessError as e:
                 sys.exit(e)
             for row in o.strip().split("\n"):
-                if not row.strip(): # skip empty lines
+                if not row.strip():  # skip empty lines
                     continue
                 jobid, name = row.split()
                 for pattern in afterok_pattern:
                     if fnmatch.fnmatch(name, pattern):
                         matching_jobids.append(jobid)
-   
+
         o_array = use_array and '-t 1-{}'.format(num_jobs) or ''
         o_walltime = walltime and "-l {}".format(walltime) or ''
-        o_dependencies= matching_jobids and ('-W depend=' + 
-            (use_array and 'afterokarray:' or 'afterok:') + 
-            ':'.join(matching_jobids)) or ''
-        o_options='\n#PBS '.join(options)
+        o_dependencies = matching_jobids and \
+            ('-W depend=' + (use_array and 'afterokarray:' or 'afterok:') +
+                ':'.join(matching_jobids)) or ''
+        o_options = '\n#PBS '.join(options)
         header = PBS_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'sge':
         ppn = (ppn > 1) and '-pe smp {}'.format(ppn) or ''
         o_array = use_array and '-t 1-{}'.format(num_jobs) or ''
         o_walltime = walltime and "#$ -h_rt={}".format(walltime) or ''
-        o_dependencies = afterok_pattern and '-hold_jid ' + afterok_pattern or ''
-        o_options='\n#$ '.join(options)
+        o_dependencies = afterok_pattern and '-hold_jid ' + \
+            afterok_pattern or ''
+        o_options = '\n#$ '.join(options)
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'local':
@@ -259,7 +267,8 @@ if __name__ == "__main__":
             header,
             'CHUNK_SIZE={}'.format(chunk_size),
             'CORES={}'.format(ncores),
-            'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -j${CORES}',
+            'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
+            '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -j${CORES}',
             ''.join(task_list),
             'EOF']
 
@@ -270,7 +279,8 @@ if __name__ == "__main__":
         job_scripts.append(scriptfile)
     else:
         for chunk in range(num_jobs):
-            scriptfile = os.path.join(SCRIPT_FOLDER, "{}.{}".format(job_name, chunk))
+            scriptfile = os.path.join(
+                SCRIPT_FOLDER, "{}.{}".format(job_name, chunk))
             script_lines = [
                 header,
                 'CORES={}'.format(ncores),
@@ -293,6 +303,7 @@ if __name__ == "__main__":
             if return_code:
                 sys.exit("qsub call returned error")
         else:
-            if verbose: 
-                print "Launching Local Jobscript, saving output to {}/{}.log".format(logdir, job_name)
-            run_command(script, logfile="{}/{}.log".format(logdir, job_name))
+            logfile = "{}/{}.log".format(logdir, job_name)
+            if verbose:
+                print("Launching jobscript. Output to {}".format(logfile))
+            run_command(script, logfile=logfile)
