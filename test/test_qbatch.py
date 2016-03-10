@@ -27,7 +27,7 @@ def command_pipe(command):
 
 def test_run_qbatch_dryrun_array_output_exists(): 
     cmds = "\n".join(["echo hello"])
-    p = command_pipe('qbatch -n -')
+    p = command_pipe('qbatch -n')
     out, err = p.communicate(cmds)
 
     assert p.returncode == 0 
@@ -39,7 +39,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
     outputs = range(chunk_size*chunks)
 
     cmds = "\n".join(map(lambda x: 'echo {}'.format(x), outputs))
-    p = command_pipe('qbatch -n -b sge -c {} -'.format(chunk_size))
+    p = command_pipe('qbatch -n -b sge -c {}'.format(chunk_size))
     out, err = p.communicate(cmds)
 
     array_script = join(tempdir, 'STDIN.array')
@@ -59,7 +59,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
 
 def test_run_qbatch_local_piped_commands(): 
     cmds = "\n".join(["echo hello"]*24)
-    p = command_pipe('qbatch -b local -')
+    p = command_pipe('qbatch -b local')
     out, err = p.communicate(cmds)
 
     expected, _ = command_pipe('bash').communicate(cmds)
