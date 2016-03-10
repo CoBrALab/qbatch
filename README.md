@@ -1,6 +1,8 @@
 # qbatch
 --------------------------------------------------------------------------------
 
+![Travis CI build status](https://travis-ci.org/pipitone/qbatch.svg?branch=master)
+
 A script for generating array and standard jobs in arbitrary chunks to SGE/PBS clusters.
 Can also run jobs locally on systems with no batch capability.
 
