@@ -5,4 +5,4 @@ addons:
     apt:
         packages:
         - parallel 
-script: python setup.py install nosetests
+script: nosetests
