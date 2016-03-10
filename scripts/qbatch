@@ -176,7 +176,7 @@ if __name__ == "__main__":
         env = "# -- start copied env\n{}\n# -- end copied env".format(env)
 
     # make script header
-    shebang = '#!/bin/bash -l'
+    shebang = '#!/bin/bash'
 
     if system == 'pbs':
         matching_jobids = []
