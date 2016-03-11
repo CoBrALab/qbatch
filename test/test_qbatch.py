@@ -27,6 +27,12 @@ def command_pipe(command):
     return Popen(shlex.split(command), stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
 
+def test_qbatch_help():
+    p = command_pipe('qbatch --help')
+    out, err = p.communicate('')
+    assert p.returncode == 0, err
+
+
 def test_run_qbatch_dryrun_array_output_exists():
     cmds = "\n".join(["echo hello"])
     p = command_pipe('qbatch -n -')
