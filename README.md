@@ -62,7 +62,7 @@ advanced options:
                         threading) (default: 8)
   --pe PE               The SGE parallel environment to use if more than one
                         core is reqeuested (via --ppn) for each job. (default:
-                        lolparty)
+                        smp)
   --highmem             (Scinet-only) Submit to high memory nodes (default:
                         False)
   -i                    Use individual jobs instead of an array job (default:
