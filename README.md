@@ -32,6 +32,8 @@ $ export QBATCH_NODES=1
 $ export QBATCH_SYSTEM="pbs"
 $ export QBATCH_CORES=$QBATCH_PPN
 $ export QBATCH_PE="smp"
+$ export QBATCH_MEMVARS="mem"
+$ export QBATCH_MEM="0"
 ```
 
 These correspond to the same named options in the qbatch help output above.
@@ -48,7 +50,7 @@ $ qbatch -w 3:00:00 commands.txt
 # Run 24 commands per job
 $ qbatch -c24 commands.txt
 
-# Run 24 commands per job, but run 12 in parallel at a time
+# Request 1# Run 24 commands per job, but run 12 in parallel at a time
 $ qbatch -c24 -j12 commands.txt
 
 # Start jobs after successful completion of existing jobs with names starting with "stage1_"

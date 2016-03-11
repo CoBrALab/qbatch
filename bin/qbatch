@@ -16,6 +16,8 @@ NODES = os.environ.get("QBATCH_NODES", 1)
 SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
 CORES = os.environ.get("QBATCH_CORES", PPN)
 PE = os.environ.get("QBATCH_PE", "smp")
+MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
+MEM = os.environ.get("QBATCH_MEM", "0")
 SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".scripts/")
 
 # environment vars to ignore when copying the environment to the job script
@@ -28,6 +30,7 @@ PBS_HEADER_TEMPLATE = """
 #PBS -o {logdir}
 #PBS -d {workdir}
 #PBS -N {job_name}
+#PBS {o_memopts}
 #PBS {o_array}
 #PBS {o_walltime}
 #PBS {o_dependencies}
@@ -44,6 +47,7 @@ SGE_HEADER_TEMPLATE = """
 #$ -o {logdir}
 #$ -wd {workdir}
 #$ -N {job_name}
+#$ {o_memopts}
 #$ {o_array}
 #$ {o_walltime}
 #$ {o_dependencies}
@@ -192,6 +196,16 @@ if __name__ == "__main__":
     group.add_argument("--pe", default=PE,
                        help="""The SGE parallel environment to use if more than
                        one core is reqeuested (via --ppn) for each job.""")
+    group.add_argument("--mem", default=MEM,
+                       help="""Memory required for each job (e.g. --mem 1G).
+                       This value will be set on each variable specified in
+                       --memvars. To not set any memory requirement, set this
+                       to 0.""")
+    group.add_argument("--memvars", default=MEMVARS,
+                       help="""A comma-separated list of variables to set with
+                       the memory given by the --mem option (e.g.
+                       --memvars=h_vmem,vf). This varables are passed directly
+                       as option to the queuing system.""")
     group.add_argument("--highmem", action="store_true",
                        help="(Scinet-only) Submit to high memory nodes")
     group.add_argument("-i", action="store_true",
@@ -221,6 +235,8 @@ if __name__ == "__main__":
     ppn = args.ppn
     afterok_pattern = args.afterok_pattern
     pe = args.pe
+    mem = args.mem != '0' and args.mem or None
+    memvars = args.memvars.split(',')
     highmem = args.highmem and ':m32g' or ''
     job_name = args.jobname
     logdir = args.logdir.format(workdir=workdir)
@@ -284,6 +300,9 @@ if __name__ == "__main__":
             ('-W depend=' + (use_array and 'afterokarray:' or 'afterok:') +
                 ':'.join(matching_jobids)) or ''
         o_options = '\n#PBS '.join(options)
+        mem_string = ','.join(["{}={}".format(var,mem) for var in memvars])
+        o_memopts = (mem and mem_string) and '-l {}'.format(mem_string) or ''
+
         header = PBS_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'sge':
@@ -293,6 +312,8 @@ if __name__ == "__main__":
         o_dependencies = afterok_pattern and '-hold_jid ' + \
             afterok_pattern or ''
         o_options = '\n#$ '.join(options)
+        mem_string = ','.join(["{}={}".format(var,mem) for var in memvars])
+        o_memopts = (mem and mem_string) and '-l {}'.format(mem_string) or ''
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'local':
