@@ -3,6 +3,7 @@ import argparse
 import math
 import os
 import os.path
+import re
 import subprocess
 import stat
 import sys
@@ -96,6 +97,36 @@ def mkdirp(*p):
             raise
     return path
 
+
+def valid_file(string):
+    """Checks argument is a file that exists or is -"""
+    if string != '-' and not os.path.isfile(string):
+        raise argparse.ArgumentTypeError(
+            "The file {} does not exist".format(string))
+    return string
+
+
+def positive_int(string):
+    """Checks agument is a positive integer"""
+    msg = "Must be a positive integer"
+
+    try:
+        value = int(string)
+    except ValueError:
+        raise argparse.ArgumentTypeError(msg)
+
+    if value < 1:
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
+def int_or_percent(string):
+    """Checks argument is an integer or integer percentage"""
+    if not re.match("^([-+]?\d+|^\d+5)$", string):
+        msg = "Must be an integer or positive integer percentage"
+        raise argparse.ArgumentTypeError(msg)
+    return string
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         usage="%(prog)s [options] <command_file>",
@@ -109,17 +140,21 @@ if __name__ == "__main__":
                         help="""An input file containing a list of commands
                         which will be submitted to the queueing system. A
                         'command' is simply a call to a command line program or
-                        script. Use - to read the command list from STDIN.""")
+                        script. Use - to read the command list from STDIN.""",
+                        type=valid_file)
     parser.add_argument("-t", "--walltime",
                         help="""Maximum walltime for an array job element or
                         individual job submitted""")
-    parser.add_argument("-c", default=1, type=int,
+    parser.add_argument("-c", default=1,
                         help="""Number of commands from the command list that
-                        are wrapped into each job""")
-    parser.add_argument("-j", default=CORES, type=int,
+                        are wrapped into each job""",
+                        type=positive_int)
+    parser.add_argument("-j", default=CORES, type=int_or_percent,
                         help="""Number of commands each job runs in parallel.
                         If the chunk size (-c) is smaller than -j then only
-                        chunk size commands will run in parallel""")
+                        chunk size commands will run in parallel. This option
+                        can also be expressed as a percentage (e.g. 100%) of
+                        the total available cores.""")
     parser.add_argument("-N", "--jobname", action="store",
                         help="""Override default job name generated from
                         command_file, or set name for STDIN jobs""")
@@ -145,9 +180,9 @@ if __name__ == "__main__":
     group.add_argument("--afterok_pattern", action="append",
                        help="""Wait for successful completion of job with
                        name(s) matching glob pattern before starting""")
-    group.add_argument("--nodes", default=NODES, type=int,
+    group.add_argument("--nodes", default=NODES, type=positive_int,
                        help="Nodes to request per job")
-    group.add_argument("--ppn", default=PPN, type=int,
+    group.add_argument("--ppn", default=PPN, type=positive_int,
                        help="""Number of cores each job requests aka
                        processors per node (ppn on PBS, parallel environment
                        number on SGE). Cores can be over subscribed if -j is
