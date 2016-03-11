@@ -16,7 +16,6 @@ def setup_module():
     tempdir = tempfile.mkdtemp(dir=SHARED_FOLDER)
     os.environ["QBATCH_SCRIPT_FOLDER"] = tempdir
     os.environ["QBATCH_PPN"] = "1"
-    os.environ["PATH"] = "./scripts:" + os.environ["PATH"]  # HACK
 
 
 def teardown_module():

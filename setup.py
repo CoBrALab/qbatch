@@ -10,7 +10,7 @@ setup(
     author_email="jon@pipitone.ca, gdevenyi@gmail.com",
     license='Unlicense',
     url="https://github.com/pipitone/qbatch",
-    scripts=["scripts/qbatch", "scripts/pbs_jobnames"],
+    scripts=["bin/qbatch", "bin/pbs_jobnames"],
     long_description=open('README.md').read(),
     setup_requires=['nose>=1.0'],
 )
