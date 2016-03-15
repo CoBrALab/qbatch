@@ -295,7 +295,7 @@ if __name__ == "__main__":
                         matching_jobids.append(jobid)
 
         o_array = use_array and '-t 1-{}'.format(num_jobs) or ''
-        o_walltime = walltime and "-l {}".format(walltime) or ''
+        o_walltime = walltime and "-l walltime={}".format(walltime) or ''
         o_dependencies = matching_jobids and \
             ('-W depend=' + (use_array and 'afterokarray:' or 'afterok:') +
                 ':'.join(matching_jobids)) or ''
