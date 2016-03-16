@@ -46,8 +46,8 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
     chunks = 5
     outputs = range(chunk_size * chunks)
 
-    cmds = "\n".join(map(lambda x: 'echo {}'.format(x), outputs))
-    p = command_pipe('qbatch -n -b sge -c {} -'.format(chunk_size))
+    cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
+    p = command_pipe('qbatch -n -b sge -c {0} -'.format(chunk_size))
     out, err = p.communicate(cmds)
 
     array_script = join(tempdir, 'STDIN.array')
@@ -63,9 +63,9 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
         out, _ = array_pipe.communicate()
 
         assert array_pipe.returncode == 0, \
-            "Chunk {}: return code = {}".format(chunk, array_pipe.returncode)
+            "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
         assert out == expected, \
-            "Chunk {}: Expected {} but got {}".format(chunk, expected, out)
+            "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
 def test_run_qbatch_pbs_dryrun_array_piped_chunks():
@@ -73,8 +73,8 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
     chunks = 5
     outputs = range(chunk_size * chunks)
 
-    cmds = "\n".join(map(lambda x: 'echo {}'.format(x), outputs))
-    p = command_pipe('qbatch -n -b pbs -c {} -'.format(chunk_size))
+    cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
+    p = command_pipe('qbatch -n -b pbs -c {0} -'.format(chunk_size))
     out, err = p.communicate(cmds)
 
     array_script = join(tempdir, 'STDIN.array')
@@ -90,9 +90,9 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
         out, _ = array_pipe.communicate()
 
         assert array_pipe.returncode == 0, \
-            "Chunk {}: return code = {}".format(chunk, array_pipe.returncode)
+            "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
         assert out == expected, \
-            "Chunk {}: Expected {} but got {}".format(chunk, expected, out)
+            "Chunk {0}: Expected {1} but got {3}".format(chunk, expected, out)
 
 
 def test_run_qbatch_local_piped_commands():
