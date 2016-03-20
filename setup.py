@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='qbatch',
-    version='0.1',
+    version='1.0rc1',
     description='Execute shell command lines in parallel on SGE/PBS clusters',
     author="Jon Pipitone, Gabriel A. Devenyi",
     author_email="jon@pipitone.ca, gdevenyi@gmail.com",
