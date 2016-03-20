@@ -14,4 +14,4 @@ install:
 
 script:
     - nosetests -v
-    - pep8 bin test
+    - pep8 bin/qbatch test

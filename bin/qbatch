@@ -270,8 +270,8 @@ if __name__ == "__main__":
     # copy the current environment
     env = ''
     if copy_env:
-        env = '\n'.join(['export {0}="{1}"'.format(k, v.replace('"', r'\"')) for
-                         k, v in os.environ.items()
+        env = '\n'.join(['export {0}="{1}"'.format(k, v.replace('"', r'\"'))
+                         for k, v in os.environ.items()
                          if k not in IGNORE_ENV_VARS])
         env = env.replace("$", "$$")
         env = "# -- start copied env\n{0}\n# -- end copied env".format(env)
@@ -300,7 +300,7 @@ if __name__ == "__main__":
             ('-W depend=' + (use_array and 'afterokarray:' or 'afterok:') +
                 ':'.join(matching_jobids)) or ''
         o_options = '\n#PBS '.join(options)
-        mem_string = ','.join(["{0}={1}".format(var,mem) for var in memvars])
+        mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
 
         header = PBS_HEADER_TEMPLATE.format(**vars())
@@ -312,7 +312,7 @@ if __name__ == "__main__":
         o_dependencies = afterok_pattern and '-hold_jid ' + \
             afterok_pattern or ''
         o_options = '\n#$ '.join(options)
-        mem_string = ','.join(["{0}={1}".format(var,mem) for var in memvars])
+        mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
