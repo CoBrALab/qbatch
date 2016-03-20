@@ -132,6 +132,37 @@ def int_or_percent(string):
         raise argparse.ArgumentTypeError(msg)
     return string
 
+
+def pbs_find_jobs(patterns):
+    """Finds jobs with names matching a given list of patterns
+
+    Returns a list of job IDs.
+
+    Raises an Exception if there is an error running the 'qstat' command or
+    parsing its output.
+    """
+    if not patterns:
+        return []
+
+    if isinstance(patterns, str):
+        patterns = [patterns]
+
+    import xml.etree.ElementTree as ET
+
+    output = subprocess.check_output(['qstat', '-x'], stderr=subprocess.STDOUT)
+    tree = ET.fromstring(output)
+
+    matches = []
+    for job in tree:
+        jobid = job.find('Job_Id').text
+        name = job.find('Job_Name').text
+
+        for pattern in patterns:
+            if fnmatch.fnmatch(name, pattern):
+                matches.append(jobid)
+
+    return matches
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         usage="%(prog)s [options] <command_file>",
@@ -280,19 +311,12 @@ if __name__ == "__main__":
     shebang = '#!/bin/bash'
 
     if system == 'pbs':
-        matching_jobids = []
-        if afterok_pattern:
-            try:
-                o = subprocess.check_output('pbs_jobnames')
-            except subprocess.CalledProcessError as e:
-                sys.exit(e)
-            for row in o.strip().split("\n"):
-                if not row.strip():  # skip empty lines
-                    continue
-                jobid, name = row.split()
-                for pattern in afterok_pattern:
-                    if fnmatch.fnmatch(name, pattern):
-                        matching_jobids.append(jobid)
+        try:
+            matching_jobids = pbs_find_jobs(afterok_pattern)
+        except Exception as e:
+            print >>sys.stderr, "Error matching afterok_pattern"
+            print >>sys.stderr, str(e)
+            sys.exit(1)
 
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
         o_walltime = walltime and "-l walltime={0}".format(walltime) or ''
