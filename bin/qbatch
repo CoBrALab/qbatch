@@ -250,6 +250,11 @@ if __name__ == "__main__":
     group.add_argument("--no-env", action="store_true",
                        help="""Do not copy the current environment into the job
                        script(s)""")
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+
     args = parser.parse_args()
 
     command_file = args.command_file
