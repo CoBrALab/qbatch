@@ -163,6 +163,27 @@ def pbs_find_jobs(patterns):
 
     return matches
 
+
+def which(program):
+#Check for existence of important programs
+#Stolen from
+#https://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         usage="%(prog)s [options] <command_file>",
@@ -273,6 +294,14 @@ if __name__ == "__main__":
     logdir = args.logdir.format(workdir=workdir)
     copy_env = not args.no_env
     verbose = args.v
+
+    #Preflight check
+    if system == 'sge' or system == 'pbs':
+        if not which("qsub"):
+            sys.exit("qsub command not found")
+
+    if not which("parallel"):
+        sys.exit("parallel command not found")
 
     mkdirp(logdir)
 
