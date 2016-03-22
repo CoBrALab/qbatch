@@ -64,11 +64,10 @@ LOCAL_TEMPLATE = """
 cd {workdir}
 """.strip()
 
-# Stolen from
-# http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html
-
 
 def run_command(command, logfile=None):
+    # Run command and collect stdout
+    # http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html # noqa
     process = subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if logfile:
@@ -165,9 +164,9 @@ def pbs_find_jobs(patterns):
 
 
 def which(program):
-#Check for existence of important programs
-#Stolen from
-#https://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
+    # Check for existence of important programs
+    # Stolen from
+    # http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python # noqa
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
@@ -295,7 +294,7 @@ if __name__ == "__main__":
     copy_env = not args.no_env
     verbose = args.v
 
-    #Preflight check
+    # Preflight check
     if system == 'sge' or system == 'pbs':
         if not which("qsub"):
             sys.exit("qsub command not found")
