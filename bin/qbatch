@@ -79,6 +79,22 @@ SGE_HEADER_TEMPLATE = """
 ARRAY_IND=$SGE_TASK_ID
 """.strip()
 
+LSF_HEADER_TEMPLATE = """
+{shebang}
+#BSUB {o_ppn}
+#BSUB {o_log}
+#BSUB -cwd {workdir}
+#BSUB {o_memopts}
+#BSUB {o_array}
+#BSUB {o_walltime}
+#BSUB {o_dependencies}
+#BSUB {o_options}
+{env}
+{header_commands}
+ARRAY_IND=LSB_JOBINDEX
+""".strip()
+
+
 LOCAL_TEMPLATE = """
 #!{shell}
 {env}
@@ -327,7 +343,7 @@ if __name__ == "__main__":
         "-i", action="store_true",
         help="Submit individual jobs instead of an array job")
     group.add_argument(
-        "-b", default=SYSTEM, choices=['pbs', 'sge', 'local'],
+        "-b", default=SYSTEM, choices=['pbs', 'sge', 'lsf', 'local'],
         help="""The type of queueing system to use. 'pbs' and 'sge' both make
         calls to qsub to submit jobs. 'local' runs the entire command list
         (without chunking) locally.""")
@@ -379,6 +395,9 @@ if __name__ == "__main__":
     if system == 'sge' or system == 'pbs':
         if not which("qsub"):
             sys.exit("qsub command not found")
+    elif system == 'lsf':
+        if not which("bsub"):
+            sys.exit("bsub command not found")
 
     if not which("parallel"):
         sys.exit("parallel command not found")
@@ -466,6 +485,18 @@ if __name__ == "__main__":
         o_queue = queue and '-q {0}'.format(queue) or ''
 
         header = SGE_HEADER_TEMPLATE.format(**vars())
+    elif system == 'lsf':
+        o_ppn = (ppn > 1) and '-n {0}'.format(ppn) or ''
+        o_array = (use_array and num_jobs > 1) and \
+            '\"-J {0}[1-{1}]\"'.format(job_name, num_jobs) \
+            or '-J {0}'.format(job_name)
+        o_dependencies = afterok_pattern and \
+            '-w \'done("' + '") && done("'.join(afterok_pattern) + '")\'' or ''
+        o_log = '-o {0}/{1}.%J.%I'.format(logdir, job_name)
+        o_memopts = mem and '-M {0}'.format(mem) or ''
+        o_walltime = walltime and '-W {0}'.format(walltime) or ''
+        o_options = '\n#BSUB '.join(options)
+        header = LSF_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'local':
         header = LOCAL_TEMPLATE.format(**vars())
@@ -535,6 +566,16 @@ if __name__ == "__main__":
             return_code = subprocess.call(['qsub', script])
             if return_code:
                 sys.exit("qsub call " +
+                         "returned error code {0}".format(return_code))
+        elif system == 'lsf':
+            if verbose:
+                print("Running: bsub < {0}".format(script))
+            if dry_run:
+                continue
+            return_code = subprocess.call("bsub < {0}".format(script),
+                                          shell=True)
+            if return_code:
+                sys.exit("bsub call " +
                          "returned error code {0}".format(return_code))
         else:
             logfile = "{0}/{1}.log".format(logdir, job_name)
