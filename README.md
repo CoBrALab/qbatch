@@ -54,7 +54,7 @@ $ qbatch -c24 commands.txt
 $ qbatch -c24 -j12 commands.txt
 
 # Start jobs after successful completion of existing jobs with names starting with "stage1_"
-$ qbatch --afterok_pattern 'stage1_*' commands.txt
+$ qbatch --afterok 'stage1_*' commands.txt
 
 # Pipe a list of commands to qbatch 
 $ parallel echo process.sh {} ::: *.dat | qbatch -
@@ -63,5 +63,5 @@ $ parallel echo process.sh {} ::: *.dat | qbatch -
 $ qbatch -b local -j12 commands.txt
 
 # Many options don't make sense locally: chunking, individual vs array, nodes,
-# ppn, highmem, and afterok_pattern are ignored
+# ppn, highmem, and afterok are ignored
 ```
