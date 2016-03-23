@@ -92,7 +92,7 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
         assert array_pipe.returncode == 0, \
             "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
         assert out == expected, \
-            "Chunk {0}: Expected {1} but got {3}".format(chunk, expected, out)
+            "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
 def test_run_qbatch_local_piped_commands():
