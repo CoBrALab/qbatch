@@ -12,9 +12,10 @@ import errno
 
 # setup defaults (let environment override)
 PPJ = os.environ.get("QBATCH_PPJ", 1)
-NODES = os.environ.get("QBATCH_NODES", 1)
+CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
+CORES = os.environ.get("QBATCH_CORES", PPJ)
 SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
-CORES = os.environ.get("QBATCH_CORES", "100%")
+NODES = os.environ.get("QBATCH_NODES", 1)
 PE = os.environ.get("QBATCH_PE", "smp")
 MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
 MEM = os.environ.get("QBATCH_MEM", "0")
@@ -180,7 +181,7 @@ if __name__ == "__main__":
         "-w", "--walltime",
         help="""Maximum walltime for an array job element or individual job""")
     parser.add_argument(
-        "-c", "--chunksize", default=1, type=positive_int,
+        "-c", "--chunksize", default=CHUNKSIZE, type=positive_int,
         help="""Number of commands from the command list that are wrapped into
         each job""")
     parser.add_argument(

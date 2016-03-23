@@ -27,13 +27,14 @@ qbatch supports several environment variables to customize defaults for your
 local system.
 
 ```sh
-$ export QBATCH_PPJ=12
-$ export QBATCH_NODES=1
-$ export QBATCH_SYSTEM="pbs"
-$ export QBATCH_CORES=$QBATCH_PPJ
-$ export QBATCH_PE="smp"
-$ export QBATCH_MEMVARS="mem"
-$ export QBATCH_MEM="0"
+$ export QBATCH_PPJ=12                   # requested processors per job
+$ export QBATCH_CHUNKSIZE=$QBATCH_PPJ    # commands to run per job
+$ export QBATCH_CORES=$QBATCH_PPJ        # commonds to run in parallel per job
+$ export QBATCH_MEM="0"                  # requested memory per job
+$ export QBATCH_MEMVARS="mem"            # memory request variable to set
+$ export QBATCH_SYSTEM="pbs"             # queuing system to use
+$ export QBATCH_NODES=1                  # (PBS-only) nodes to request per job
+$ export QBATCH_PE="smp"                 # (SGE-only) parallel environment name
 ```
 
 These correspond to the same named options in the qbatch help output above.
