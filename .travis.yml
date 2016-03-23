@@ -6,7 +6,8 @@ python:
 addons:
     apt:
         packages:
-        - parallel 
+        - parallel
+        - gridengine-client
 
 install:
     - pip install .
