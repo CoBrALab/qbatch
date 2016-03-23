@@ -27,10 +27,10 @@ qbatch supports several environment variables to customize defaults for your
 local system.
 
 ```sh
-$ export QBATCH_PPN=12
+$ export QBATCH_PPJ=12
 $ export QBATCH_NODES=1
 $ export QBATCH_SYSTEM="pbs"
-$ export QBATCH_CORES=$QBATCH_PPN
+$ export QBATCH_CORES=$QBATCH_PPJ
 $ export QBATCH_PE="smp"
 $ export QBATCH_MEMVARS="mem"
 $ export QBATCH_MEM="0"
@@ -63,5 +63,5 @@ $ parallel echo process.sh {} ::: *.dat | qbatch -
 $ qbatch -b local -j12 commands.txt
 
 # Many options don't make sense locally: chunking, individual vs array, nodes,
-# ppn, highmem, and afterok are ignored
+# ppj, highmem, and afterok are ignored
 ```

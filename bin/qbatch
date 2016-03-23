@@ -11,7 +11,7 @@ import fnmatch
 import errno
 
 # setup defaults (let environment override)
-PPN = os.environ.get("QBATCH_PPN", 1)
+PPJ = os.environ.get("QBATCH_PPJ", 1)
 NODES = os.environ.get("QBATCH_NODES", 1)
 SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
 CORES = os.environ.get("QBATCH_CORES", "100%")
@@ -25,7 +25,7 @@ IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND']
 
 PBS_HEADER_TEMPLATE = """
 {shebang}
-#PBS -l nodes={nodes}{highmem}:ppn={ppn}
+#PBS -l nodes={nodes}{highmem}:ppn={ppj}
 #PBS -j oe
 #PBS -o {logdir}
 #PBS -d {workdir}
@@ -42,7 +42,7 @@ ARRAY_IND=PBS_ARRAYID
 
 SGE_HEADER_TEMPLATE = """
 {shebang}
-#$ {ppn}
+#$ {ppj}
 #$ -j y
 #$ -o {logdir}
 #$ -wd {workdir}
@@ -190,9 +190,9 @@ if __name__ == "__main__":
         parallel. This option can also be expressed as a percentage (e.g.
         100%%) of the total available cores""")
     parser.add_argument(
-        "--ppn", default=PPN, type=positive_int,
+        "--ppj", default=PPJ, type=positive_int,
         help="""Requested number of processors per job (aka ppn on PBS,
-        slots on SGE). Cores can be over subscribed if -j is larger than --ppn
+        slots on SGE). Cores can be over subscribed if -j is larger than --ppj
         (useful to make use of hyper-threading on some systems)""")
     parser.add_argument(
         "-N", "--jobname", action="store",
@@ -262,7 +262,7 @@ if __name__ == "__main__":
     walltime = args.walltime
     chunk_size = args.chunksize
     ncores = args.cores
-    ppn = args.ppn
+    ppj = args.ppj
     job_name = args.jobname
     mem = args.mem != '0' and args.mem or None
     verbose = args.v
@@ -335,7 +335,7 @@ if __name__ == "__main__":
         header = PBS_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'sge':
-        ppn = (ppn > 1) and '-pe {0} {1}'.format(pe, ppn) or ''
+        ppj = (ppj > 1) and '-pe {0} {1}'.format(pe, ppj) or ''
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
         o_walltime = walltime and "#$ -h_rt={0}".format(walltime) or ''
         o_dependencies = afterok_pattern and '-hold_jid ' + \
