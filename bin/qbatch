@@ -38,7 +38,7 @@ PBS_HEADER_TEMPLATE = """
 #PBS {o_options}
 {env}
 {header_commands}
-ARRAY_IND=PBS_ARRAYID
+ARRAY_IND=$PBS_ARRAYID
 """.strip()
 
 SGE_HEADER_TEMPLATE = """
@@ -55,7 +55,7 @@ SGE_HEADER_TEMPLATE = """
 #$ {o_options}
 {env}
 {header_commands}
-ARRAY_IND=SGE_TASK_ID
+ARRAY_IND=$SGE_TASK_ID
 """.strip()
 
 LOCAL_TEMPLATE = """
