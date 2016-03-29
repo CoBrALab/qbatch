@@ -91,7 +91,7 @@ LSF_HEADER_TEMPLATE = """
 #BSUB {o_options}
 {env}
 {header_commands}
-ARRAY_IND=LSB_JOBINDEX
+ARRAY_IND=$LSB_JOBINDEX
 """.strip()
 
 
@@ -345,8 +345,8 @@ if __name__ == "__main__":
     group.add_argument(
         "-b", default=SYSTEM, choices=['pbs', 'sge', 'lsf', 'local'],
         help="""The type of queueing system to use. 'pbs' and 'sge' both make
-        calls to qsub to submit jobs. 'local' runs the entire command list
-        (without chunking) locally.""")
+        calls to qsub to submit jobs. 'lsf' makes calls to bsub. 'local' runs
+        the entire command list (without chunking) locally.""")
     group.add_argument(
         "--env", choices=['copied', 'batch', 'none'], default='copied',
         help="""Determines how your environment is propagated when your
