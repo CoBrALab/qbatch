@@ -366,7 +366,7 @@ if __name__ == "__main__":
     elif system == 'sge':
         ppj = (ppj > 1) and '-pe {0} {1}'.format(pe, ppj) or ''
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
-        o_walltime = walltime and "-l -h_rt={0}".format(walltime) or ''
+        o_walltime = walltime and "-l h_rt={0}".format(walltime) or ''
         o_dependencies = afterok_pattern and '-hold_jid \'' + \
             '\',\''.join(afterok_pattern) + '\'' or ''
         o_options = '\n#$ '.join(options)
