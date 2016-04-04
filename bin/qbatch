@@ -22,7 +22,8 @@ MEM = os.environ.get("QBATCH_MEM", "0")
 SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".scripts/")
 
 # environment vars to ignore when copying the environment to the job script
-IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND']
+IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
+                   'BASH_FUNC_module()']
 
 PBS_HEADER_TEMPLATE = """
 {shebang}
