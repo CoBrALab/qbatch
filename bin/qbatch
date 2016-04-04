@@ -23,7 +23,7 @@ SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".scripts/")
 
 # environment vars to ignore when copying the environment to the job script
 IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
-                   'BASH_FUNC_module()']
+                   'BASH_FUNC_*']
 
 PBS_HEADER_TEMPLATE = """
 {shebang}
@@ -338,7 +338,7 @@ if __name__ == "__main__":
     if copy_env:
         env = '\n'.join(['export {0}="{1}"'.format(k, v.replace('"', r'\"'))
                          for k, v in os.environ.items()
-                         if k not in IGNORE_ENV_VARS])
+                         if all(fnmatch.filter(k,pattern) for pattern in IGNORE_ENV_VARS)])
         env = env.replace("$", "$$")
         env = "# -- start copied env\n{0}\n# -- end copied env".format(env)
 
