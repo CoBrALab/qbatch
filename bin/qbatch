@@ -426,7 +426,7 @@ if __name__ == "__main__":
         os.chmod(script, os.stat(script).st_mode | stat.S_IXUSR)
         if system == 'sge' or system == 'pbs':
             if verbose:
-                print ("Running: qsub {0}".format(script))
+                print("Running: qsub {0}".format(script))
             if dry_run:
                 continue
             return_code = subprocess.call(['qsub', script])
