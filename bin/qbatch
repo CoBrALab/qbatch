@@ -349,9 +349,7 @@ if __name__ == "__main__":
         try:
             matching_jobids = pbs_find_jobs(afterok_pattern)
         except Exception as e:
-            print >>sys.stderr, "Error matching afterok pattern"
-            print >>sys.stderr, str(e)
-            sys.exit(1)
+            sys.exit("Error matching afterok pattern {0}".format(str(e)))
 
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
         o_walltime = walltime and "-l walltime={0}".format(walltime) or ''
@@ -415,14 +413,19 @@ if __name__ == "__main__":
     # execute the job script(s)
     for script in job_scripts:
         os.chmod(script, os.stat(script).st_mode | stat.S_IXUSR)
-        if dry_run:
-            continue
         if system == 'sge' or system == 'pbs':
+            if verbose:
+                print "Running: qsub {0}".format(script)
+            if dry_run:
+                continue
             return_code = subprocess.call(['qsub', script])
             if return_code:
-                sys.exit("qsub call returned error")
+                sys.exit("qsub call " +
+                         "returned error code {0}".format(return_code))
         else:
             logfile = "{0}/{1}.log".format(logdir, job_name)
             if verbose:
                 print("Launching jobscript. Output to {0}".format(logfile))
+            if dry_run:
+                continue
             run_command(script, logfile=logfile)
