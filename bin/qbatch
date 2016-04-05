@@ -330,6 +330,11 @@ if __name__ == "__main__":
         use_array = False
         num_jobs = 1
         chunk_size = sys.maxsize
+    elif len(task_list) <= chunk_size:
+        use_array = False
+        num_jobs = 1
+        print >>sys.stderr, "Number of commands less than chunk size, " \
+                            "building single non-array job"
     else:
         num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
 
@@ -399,13 +404,18 @@ if __name__ == "__main__":
         for chunk in range(num_jobs):
             scriptfile = os.path.join(
                 SCRIPT_FOLDER, "{0}.{1}".format(job_name, chunk))
-            script_lines = [
-                header,
-                'CORES={0}'.format(ncores),
-                "parallel -j${CORES} << EOF",
-                ''.join(task_list[chunk * chunk_size:chunk *
-                                  chunk_size + chunk_size]),
-                'EOF']
+            if len(task_list) == 1:
+                script_lines = [
+                    header,
+                    ''.join(task_list)]
+            else:
+                script_lines = [
+                    header,
+                    'CORES={0}'.format(ncores),
+                    "parallel -j${CORES} << EOF",
+                    ''.join(task_list[chunk * chunk_size:chunk *
+                                      chunk_size + chunk_size]),
+                    'EOF']
             script = open(scriptfile, "w")
             script.write('\n'.join(script_lines))
             script.close()
