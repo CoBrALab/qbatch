@@ -32,13 +32,13 @@ def test_qbatch_help():
     assert p.returncode == 0, err
 
 
-def test_run_qbatch_dryrun_array_output_exists():
+def test_run_qbatch_dryrun_single_output_exists():
     cmds = "\n".join(["echo hello"])
     p = command_pipe('qbatch -n -')
     out, err = p.communicate(cmds)
 
     assert p.returncode == 0
-    assert exists(join(tempdir, 'STDIN.array'))
+    assert exists(join(tempdir, 'STDIN.0'))
 
 
 def test_run_qbatch_sge_dryrun_array_piped_chunks():
