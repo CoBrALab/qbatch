@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import argparse
 import math
 import os
@@ -323,7 +324,7 @@ if __name__ == "__main__":
     # compute the number of jobs needed. This will be the number of elements in
     # the array job
     if len(task_list) == 0:
-        print >>sys.stderr, "No jobs to submit, exiting"
+        print("No jobs to submit, exiting", file=sys.stderr)
         sys.exit()
 
     if system == 'local':
@@ -333,8 +334,8 @@ if __name__ == "__main__":
     elif len(task_list) <= chunk_size:
         use_array = False
         num_jobs = 1
-        print >>sys.stderr, "Number of commands less than chunk size, " \
-                            "building single non-array job"
+        print("Number of commands less than chunk size, "
+              "building single non-array job", file=sys.stderr)
     else:
         num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
 
