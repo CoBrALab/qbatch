@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import argparse
 import math
 import os
@@ -73,17 +74,17 @@ def run_command(command, logfile=None):
     process = subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if logfile:
-        filehandle = open(logfile, 'w')
+        filehandle = open(logfile, 'wb')
     while True:
         output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
+        if output.decode('UTF-8') == '' and process.poll() is not None:
             break
         if output and logfile:
-            print output.strip()
+            print(output.strip().decode('UTF-8'))
             filehandle.write(output.strip())
-            filehandle.write('\n')
+            filehandle.write("\n".encode('UTF-8'))
         elif output:
-            print output.strip()
+            print(output.strip().decode('UTF-8'))
     rc = process.poll()
     if logfile:
         filehandle.close()
@@ -323,7 +324,7 @@ if __name__ == "__main__":
     # compute the number of jobs needed. This will be the number of elements in
     # the array job
     if len(task_list) == 0:
-        print >>sys.stderr, "No jobs to submit, exiting"
+        print("No jobs to submit, exiting", file=sys.stderr)
         sys.exit()
 
     if system == 'local':
@@ -333,8 +334,8 @@ if __name__ == "__main__":
     elif len(task_list) <= chunk_size:
         use_array = False
         num_jobs = 1
-        print >>sys.stderr, "Number of commands less than chunk size, " \
-                            "building single non-array job"
+        print("Number of commands less than chunk size, "
+              "building single non-array job", file=sys.stderr)
     else:
         num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
 
@@ -426,7 +427,7 @@ if __name__ == "__main__":
         os.chmod(script, os.stat(script).st_mode | stat.S_IXUSR)
         if system == 'sge' or system == 'pbs':
             if verbose:
-                print "Running: qsub {0}".format(script)
+                print("Running: qsub {0}".format(script))
             if dry_run:
                 continue
             return_code = subprocess.call(['qsub', script])

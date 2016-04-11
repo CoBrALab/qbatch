@@ -28,14 +28,14 @@ def command_pipe(command):
 
 def test_qbatch_help():
     p = command_pipe('qbatch --help')
-    out, err = p.communicate('')
+    out, err = p.communicate(''.encode('UTF-8'))
     assert p.returncode == 0, err
 
 
 def test_run_qbatch_dryrun_single_output_exists():
     cmds = "\n".join(["echo hello"])
     p = command_pipe('qbatch -n -')
-    out, err = p.communicate(cmds)
+    out, err = p.communicate(cmds.encode('UTF-8'))
 
     assert p.returncode == 0
     assert exists(join(tempdir, 'STDIN.0'))
@@ -48,7 +48,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
 
     cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
     p = command_pipe('qbatch -n -b sge -c {0} -'.format(chunk_size))
-    out, err = p.communicate(cmds)
+    out, err = p.communicate(cmds.encode('UTF-8'))
 
     array_script = join(tempdir, 'STDIN.array')
     assert p.returncode == 0
@@ -64,7 +64,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
 
         assert array_pipe.returncode == 0, \
             "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
-        assert out == expected, \
+        assert out.decode('UTF-8') == expected, \
             "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
@@ -75,7 +75,7 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
 
     cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
     p = command_pipe('qbatch -n -b pbs -c {0} -'.format(chunk_size))
-    out, err = p.communicate(cmds)
+    out, err = p.communicate(cmds.encode('UTF-8'))
 
     array_script = join(tempdir, 'STDIN.array')
     assert p.returncode == 0
@@ -91,16 +91,16 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
 
         assert array_pipe.returncode == 0, \
             "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
-        assert out == expected, \
+        assert out.decode('UTF-8') == expected, \
             "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
 def test_run_qbatch_local_piped_commands():
     cmds = "\n".join(["echo hello"] * 24)
     p = command_pipe('qbatch -b local -')
-    out, err = p.communicate(cmds)
+    out, err = p.communicate(cmds.encode('UTF-8'))
 
-    expected, _ = command_pipe('bash').communicate(cmds)
+    expected, _ = command_pipe('bash').communicate(cmds.encode('UTF-8'))
 
     assert p.returncode == 0, err
     assert out == expected, out
