@@ -422,6 +422,17 @@ if __name__ == "__main__":
             script.close()
             job_scripts.append(scriptfile)
 
+    if verbose:
+        print()
+        print("   Processors per job (--ppj): {}".format(ppj))
+        print("Commands run in parallel (-j): {}".format(ncores))
+        print("        Commands per job (-c): {}".format(chunk_size))
+        print("                Walltime (-w): {}".format(walltime or "unset"))
+        print("               Memory (--mem): {}".format(mem or "unset"))
+        print(" Memory variables (--memvars): {}".format(", ".join(memvars)))
+        print("           Other options (-o): {}".format(options or "unset"))
+        print()
+
     # execute the job script(s)
     for script in job_scripts:
         os.chmod(script, os.stat(script).st_mode | stat.S_IXUSR)
