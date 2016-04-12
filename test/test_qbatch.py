@@ -14,6 +14,11 @@ SHARED_FOLDER = os.getcwd()
 def setup_module():
     global tempdir
     tempdir = tempfile.mkdtemp(dir=SHARED_FOLDER)
+
+    # unset qbatch environment variables
+    for key in (k for k in os.environ.keys() if k.startswith("QBATCH")):
+        del os.environ[key]
+
     os.environ["QBATCH_SCRIPT_FOLDER"] = tempdir
     os.environ["QBATCH_PPJ"] = "1"
 
