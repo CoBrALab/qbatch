@@ -21,6 +21,7 @@ PE = os.environ.get("QBATCH_PE", "smp")
 MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
 MEM = os.environ.get("QBATCH_MEM", "0")
 SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".scripts/")
+BATCH_OPTIONS = os.environ.get("QBATCH_OPTIONS", "").split()
 
 # environment vars to ignore when copying the environment to the job script
 IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
@@ -242,7 +243,7 @@ if __name__ == "__main__":
         "--logdir", action="store", default="{workdir}/logs",
         help="""Directory to save store log files""")
     group.add_argument(
-        "-o", "--options", action="append", default=[],
+        "-o", "--options", action="append", default=BATCH_OPTIONS,
         help="""Custom options passed directly to the queuing system (e.g
         --options "-l vf=8G". This option can be given multiple times""")
     group.add_argument(
@@ -363,7 +364,7 @@ if __name__ == "__main__":
         o_dependencies = matching_jobids and \
             ('-W depend=' + (use_array and 'afterokarray:' or 'afterok:') +
                 ':'.join(matching_jobids)) or ''
-        o_options = '\n#PBS '.join(options)
+        o_options = '\n#PBS ' + ' '.join(options)
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
 
