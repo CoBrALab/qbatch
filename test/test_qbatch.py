@@ -107,3 +107,97 @@ def test_run_qbatch_local_piped_commands():
         "Return code = {0}".format(err)
     assert out == expected, \
         "Expected {0} but got {1}".format(expected, out)
+
+
+def test_run_qbatch_pbs_dryrun_array_chunk_size_defaults_to_ppj():
+    ppj = 10
+    chunk_size = ppj
+    chunks = 5
+    outputs = range(chunk_size * chunks)
+
+    cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
+    p = command_pipe('qbatch -n -b pbs --ppj {0} -'.format(ppj))
+    out, err = p.communicate(cmds.encode('UTF-8'))
+
+    array_script = join(tempdir, 'STDIN.array')
+    assert p.returncode == 0
+    assert exists(array_script)
+
+    for chunk in range(1, chunks + 1):
+        os.environ['PBS_ARRAYID'] = str(chunk)
+        expected = '\n'.join(
+            map(lambda x: 'echo {0}\n{0}'.format(x),
+                outputs[(chunk - 1) * chunk_size:chunk * chunk_size])) + '\n'
+        array_pipe = command_pipe(array_script)
+        out, _ = array_pipe.communicate()
+
+        assert array_pipe.returncode == 0, \
+            "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
+        assert out.decode('UTF-8') == expected, \
+            "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
+
+
+def test_run_qbatch_pbs_dryrun_array_chunk_size_defaults_to_ppj_from_env():
+    ppj = 10
+    chunk_size = ppj
+    chunks = 5
+    outputs = range(chunk_size * chunks)
+
+    os.environ['QBATCH_PPJ'] = str(ppj)
+    cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
+    p = command_pipe('qbatch -n -b pbs -')
+    out, err = p.communicate(cmds.encode('UTF-8'))
+
+    array_script = join(tempdir, 'STDIN.array')
+    assert p.returncode == 0
+    assert exists(array_script)
+
+    for chunk in range(1, chunks + 1):
+        os.environ['PBS_ARRAYID'] = str(chunk)
+        expected = '\n'.join(
+            map(lambda x: 'echo {0}\n{0}'.format(x),
+                outputs[(chunk - 1) * chunk_size:chunk * chunk_size])) + '\n'
+        array_pipe = command_pipe(array_script)
+        out, _ = array_pipe.communicate()
+
+        assert array_pipe.returncode == 0, \
+            "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
+        assert out.decode('UTF-8') == expected, \
+            "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
+
+
+def test_run_qbatch_pbs_dryrun_array_cores_defaults_to_ppj():
+    ppj = 10
+    chunk_size = ppj
+    chunks = 5
+    outputs = range(chunk_size * chunks)
+
+    cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
+    p = command_pipe('qbatch -n -b pbs --ppj {0} -'.format(ppj))
+    out, err = p.communicate(cmds.encode('UTF-8'))
+
+    array_script = join(tempdir, 'STDIN.array')
+    assert p.returncode == 0
+    assert exists(array_script)
+
+    # ugly
+    assert 'CORES={0}'.format(ppj) in open(array_script).read()
+
+
+def test_run_qbatch_pbs_dryrun_array_cores_defaults_to_ppj_from_env():
+    ppj = 10
+    chunk_size = ppj
+    chunks = 5
+    outputs = range(chunk_size * chunks)
+
+    os.environ['QBATCH_PPJ'] = str(ppj)
+    cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
+    p = command_pipe('qbatch -n -b pbs -')
+    out, err = p.communicate(cmds.encode('UTF-8'))
+
+    array_script = join(tempdir, 'STDIN.array')
+    assert p.returncode == 0
+    assert exists(array_script)
+
+    # ugly
+    assert 'CORES={0}'.format(ppj) in open(array_script).read()
