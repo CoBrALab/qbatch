@@ -20,7 +20,7 @@ NODES = os.environ.get("QBATCH_NODES", 1)
 PE = os.environ.get("QBATCH_PE", "smp")
 MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
 MEM = os.environ.get("QBATCH_MEM", "0")
-SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".scripts/")
+SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
 
 # environment vars to ignore when copying the environment to the job script
 IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
