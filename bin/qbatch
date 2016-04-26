@@ -151,7 +151,12 @@ def pbs_find_jobs(patterns):
 
     import xml.etree.ElementTree as ET
 
-    output = subprocess.check_output(['qstat', '-x'], stderr=subprocess.STDOUT)
+    output = subprocess.check_output(['qstat', '-x'])
+    if not output:
+        print(
+            "WARN: Dependencies specified but no running jobs found",
+            file=sys.stderr)
+        return []
     tree = ET.fromstring(output)
 
     matches = []
