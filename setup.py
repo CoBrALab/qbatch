@@ -12,7 +12,7 @@ except (IOError, ImportError):
 
 setup(
     name='qbatch',
-    version='1.0',
+    version='1.0.1',
     description='Execute shell command lines in parallel on SGE/PBS clusters',
     author="Jon Pipitone, Gabriel A. Devenyi",
     author_email="jon@pipitone.ca, gdevenyi@gmail.com",
