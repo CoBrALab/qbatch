@@ -11,10 +11,15 @@ import sys
 import fnmatch
 import errno
 
+
+class defaultint(int):
+    """Marks an integer value as a being a default"""
+    pass
+
 # setup defaults (let environment override)
 PPJ = os.environ.get("QBATCH_PPJ", 1)
-CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
-CORES = os.environ.get("QBATCH_CORES", PPJ)
+CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", defaultint(PPJ))
+CORES = os.environ.get("QBATCH_CORES", defaultint(PPJ))
 SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
 NODES = os.environ.get("QBATCH_NODES", 1)
 PE = os.environ.get("QBATCH_PE", "smp")
@@ -288,9 +293,16 @@ if __name__ == "__main__":
 
     command_file = args.command_file
     walltime = args.walltime
-    chunk_size = args.chunksize
-    ncores = args.cores
     ppj = args.ppj
+
+    # chunksize and cores default to --ppj if they are not specified on the
+    # commandline or in the environment. The default value for these options is
+    # of type defaultint unless it has been overridden by the environment or
+    # commandline
+    chunk_size = isinstance(
+        args.chunksize, defaultint) and ppj or args.chunksize
+    ncores = isinstance(args.cores, defaultint) and ppj or args.cores
+
     job_name = args.jobname
     mem = args.mem != '0' and args.mem or None
     verbose = args.v
