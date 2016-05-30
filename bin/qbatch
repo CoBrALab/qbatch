@@ -339,8 +339,9 @@ if __name__ == "__main__":
     elif len(task_list) <= chunk_size:
         use_array = False
         num_jobs = 1
-        print("Number of commands less than chunk size, "
-              "building single non-array job", file=sys.stderr)
+        if verbose:
+            print("Number of commands less than chunk size, "
+                  "building single non-array job", file=sys.stderr)
     else:
         num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
 
