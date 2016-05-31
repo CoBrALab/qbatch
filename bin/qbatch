@@ -201,9 +201,10 @@ if __name__ == "__main__":
         {0}""".format(SCRIPT_FOLDER),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        "command_file", type=valid_file,
+        "command_file", # type=valid_file,
         help="""An input file containing a list of shell commands to be
         submitted. Use - to read the command list from STDIN""")
+    parser.add_argument("command_args", nargs = argparse.REMAINDER)
     parser.add_argument(
         "-w", "--walltime",
         help="""Maximum walltime for an array job element or individual job""")
@@ -307,6 +308,7 @@ if __name__ == "__main__":
     use_array = not args.i
     system = args.b
     copy_env = not args.no_env
+    command_args = args.command_args
 
     # Preflight check
     if system == 'sge' or system == 'pbs':
@@ -319,7 +321,11 @@ if __name__ == "__main__":
     mkdirp(logdir)
 
     # read in commands
-    if command_file == '-':
+    if '--' in sys.argv: 
+        # a single command was submitted on the command line
+        task_list = command_file + ' ' + ' '.join(command_args)
+        job_name = os.path.basename(command_file)
+    elif command_file == '-':
         task_list = sys.stdin.readlines()
         job_name = job_name or 'STDIN'
     else:

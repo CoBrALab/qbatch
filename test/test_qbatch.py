@@ -107,3 +107,15 @@ def test_run_qbatch_local_piped_commands():
         "Return code = {0}".format(err)
     assert out == expected, \
         "Expected {0} but got {1}".format(expected, out)
+
+def test_run_qbatch_local_single_command():
+    p = command_pipe('qbatch -b local -- echo "hello world"')
+    out, err = p.communicate()
+    expected, _ = command_pipe(
+        'parallel -v -j1').communicate('echo "hello world"'.encode('UTF-8'))
+
+
+    assert p.returncode == 0, \
+        "Return code = {0}".format(err)
+    assert out == expected, \
+        "Expected {0} but got {1}".format(expected, out)
