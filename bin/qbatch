@@ -255,6 +255,10 @@ if __name__ == "__main__":
         help="""A line to insert verbatim at the start of the script, and will
         be run once per job. This option can be given multiple times""")
     group.add_argument(
+        "--footer", action="append",
+        help="""A line to insert verbatim at the end of the script, and will
+        be run once per job. This option can be given multiple times""")
+    group.add_argument(
         "--nodes", default=NODES, type=positive_int,
         help="(PBS-only) Nodes to request per job")
     group.add_argument(
@@ -300,6 +304,7 @@ if __name__ == "__main__":
     logdir = args.logdir.format(workdir=workdir)
     options = args.options
     header_commands = args.header and '\n'.join(args.header) or ''
+    footer_commands = args.footer and '\n'.join(args.footer) or ''
     nodes = args.nodes
     pe = args.pe
     memvars = args.memvars.split(',')
@@ -405,6 +410,8 @@ if __name__ == "__main__":
         scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".array")
         script = open(scriptfile, 'w')
         script.write('\n'.join(script_lines))
+        if footer_commands:
+            script.write(footer_commands)
         script.close()
         job_scripts.append(scriptfile)
     else:
@@ -425,6 +432,8 @@ if __name__ == "__main__":
                     'EOF']
             script = open(scriptfile, "w")
             script.write('\n'.join(script_lines))
+            if footer_commands:
+                script.write(footer_commands)
             script.close()
             job_scripts.append(scriptfile)
 
