@@ -232,7 +232,7 @@ if __name__ == "__main__":
         requirement, set this to 0""")
     parser.add_argument(
         "-n", action="store_true",
-        help="Dry run; nothing is submitted or run")
+        help="Dry run; Create jobfiles but do not submit or run any commands")
     parser.add_argument("-v", action="store_true", help="Verbose output")
 
     group = parser.add_argument_group('advanced options')
