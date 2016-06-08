@@ -393,14 +393,24 @@ if __name__ == "__main__":
     job_scripts = []
     mkdirp(SCRIPT_FOLDER)
     if use_array:
-        script_lines = [
-            header,
-            'CHUNK_SIZE={0}'.format(chunk_size),
-            'CORES={0}'.format(ncores),
-            'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
-            '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -v -j${CORES}',
-            ''.join(task_list),
-            'EOF']
+        if chunk_size == 1:
+            script_lines = [
+                header,
+                'CHUNK_SIZE={0}'.format(chunk_size),
+                'CORES={0}'.format(ncores),
+                'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
+                '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | sh',
+                ''.join(task_list),
+                'EOF']
+        else:
+            script_lines = [
+                header,
+                'CHUNK_SIZE={0}'.format(chunk_size),
+                'CORES={0}'.format(ncores),
+                'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
+                '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -v -j${CORES}',
+                ''.join(task_list),
+                'EOF']
 
         scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".array")
         script = open(scriptfile, 'w')
@@ -411,10 +421,10 @@ if __name__ == "__main__":
         for chunk in range(num_jobs):
             scriptfile = os.path.join(
                 SCRIPT_FOLDER, "{0}.{1}".format(job_name, chunk))
-            if len(task_list) == 1:
+            if chunk_size == 1:
                 script_lines = [
                     header,
-                    ''.join(task_list)]
+                    ''.join(task_list[chunk])]
             else:
                 script_lines = [
                     header,
