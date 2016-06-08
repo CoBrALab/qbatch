@@ -167,6 +167,8 @@ def pbs_find_jobs(patterns):
         for pattern in patterns:
             if fnmatch.fnmatch(name, pattern):
                 matches.append(jobid)
+            if fnmatch.fnmatch(jobid, pattern):
+                matches.append(jobid)
 
     return matches
 
@@ -239,7 +241,8 @@ if __name__ == "__main__":
     group.add_argument(
         "--afterok", action="append",
         help="""Wait for successful completion of job(s) with name matching
-        glob pattern before starting""")
+        given glob pattern or job id matching given job id(s) before
+        starting""")
     group.add_argument(
         "-d", "--workdir", default=os.getcwd(),
         help="Job working directory")
