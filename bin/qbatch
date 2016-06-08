@@ -23,13 +23,14 @@ MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
 MEM = os.environ.get("QBATCH_MEM", "0")
 SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
 QUEUE = os.environ.get("QBATCH_QUEUE", None)
+SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
 
 # environment vars to ignore when copying the environment to the job script
 IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
                    'BASH_FUNC_*']
 
 PBS_HEADER_TEMPLATE = """
-{shebang}
+#!{shell}
 #PBS -l nodes={nodes}:{nodes_spec}ppn={ppj}
 #PBS -j oe
 #PBS -o {logdir}
@@ -48,7 +49,7 @@ ARRAY_IND=$PBS_ARRAYID
 """.strip()
 
 SGE_HEADER_TEMPLATE = """
-{shebang}
+#!{shell}
 #$ {ppj}
 #$ -j y
 #$ -o {logdir}
@@ -67,7 +68,7 @@ ARRAY_IND=$SGE_TASK_ID
 """.strip()
 
 LOCAL_TEMPLATE = """
-{shebang}
+#!{shell}
 {env}
 {header_commands}
 cd {workdir}
@@ -324,6 +325,10 @@ if __name__ == "__main__":
               the job submission script, "batch" uses the cluster's
               mechanism for propagating your environment, and "none"
               does not propagate any environment variables.""")
+    group.add_argument(
+        "--shell", default=SHELL,
+        help="""Shell to use for spawning jobs
+        and launching single commands""")
 
     if len(sys.argv) == 1:
         parser.print_usage()
@@ -355,6 +360,7 @@ if __name__ == "__main__":
     use_array = not args.i
     system = args.b
     env_mode = args.env
+    shell = args.shell
 
     # Preflight check
     if system == 'sge' or system == 'pbs':
@@ -402,9 +408,6 @@ if __name__ == "__main__":
                                     in IGNORE_ENV_VARS)])
         env = env.replace("$", "$$")
         env = "# -- start copied env\n{0}\n# -- end copied env".format(env)
-
-    # make script header
-    shebang = '#!/bin/bash'
 
     if system == 'pbs':
         try:
