@@ -38,6 +38,7 @@ PBS_HEADER_TEMPLATE = """
 #PBS {o_walltime}
 #PBS {o_dependencies}
 #PBS {o_options}
+#PBS {o_env}
 {env}
 {header_commands}
 ARRAY_IND=$PBS_ARRAYID
@@ -55,6 +56,7 @@ SGE_HEADER_TEMPLATE = """
 #$ {o_walltime}
 #$ {o_dependencies}
 #$ {o_options}
+#$ {o_env}
 {env}
 {header_commands}
 ARRAY_IND=$SGE_TASK_ID
@@ -281,8 +283,12 @@ if __name__ == "__main__":
         calls to qsub to submit jobs. 'local' runs the entire command list
         (without chunking) locally.""")
     group.add_argument(
-        "--no-env", action="store_true",
-        help="""Do not copy the current environment into the job script(s)""")
+        "--env", choices=['copied', 'batch', 'none'], default='copied',
+        help="""Determines how your environment is propagated when your
+              job runs. "copied" records your environment settings in
+              the job submission script, "batch" uses the cluster's
+              mechanism for propagating your environment, and "none"
+              does not propagate any environment variables.""")
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -311,7 +317,7 @@ if __name__ == "__main__":
     highmem = args.highmem and ':m32g' or ''
     use_array = not args.i
     system = args.b
-    copy_env = not args.no_env
+    env_mode = args.env
 
     # Preflight check
     if system == 'sge' or system == 'pbs':
@@ -352,7 +358,7 @@ if __name__ == "__main__":
 
     # copy the current environment
     env = ''
-    if copy_env:
+    if env_mode == 'copied':
         env = '\n'.join(['export {0}="{1}"'.format(k, v.replace('"', r'\"'))
                          for k, v in os.environ.items()
                          if not any(fnmatch.fnmatch(k, pattern) for pattern
@@ -377,6 +383,7 @@ if __name__ == "__main__":
         o_options = '\n#PBS '.join(options)
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
+        o_env = (env_mode == 'batch') and '-V' or ''
 
         header = PBS_HEADER_TEMPLATE.format(**vars())
 
@@ -389,6 +396,8 @@ if __name__ == "__main__":
         o_options = '\n#$ '.join(options)
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
+        o_env = (env_mode == 'batch') and '-V' or ''
+
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'local':
