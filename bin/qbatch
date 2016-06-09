@@ -21,6 +21,7 @@ PE = os.environ.get("QBATCH_PE", "smp")
 MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
 MEM = os.environ.get("QBATCH_MEM", "0")
 SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
+QUEUE = os.environ.get("QBATCH_QUEUE", None)
 
 # environment vars to ignore when copying the environment to the job script
 IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
@@ -34,6 +35,7 @@ PBS_HEADER_TEMPLATE = """
 #PBS -d {workdir}
 #PBS -N {job_name}
 #PBS {o_memopts}
+#PBS {o_queue}
 #PBS {o_array}
 #PBS {o_walltime}
 #PBS {o_dependencies}
@@ -52,6 +54,7 @@ SGE_HEADER_TEMPLATE = """
 #$ -wd {workdir}
 #$ -N {job_name}
 #$ {o_memopts}
+#$ {o_queue}
 #$ {o_array}
 #$ {o_walltime}
 #$ {o_dependencies}
@@ -233,6 +236,10 @@ if __name__ == "__main__":
         be set on each variable specified in --memvars. To not set any memory
         requirement, set this to 0""")
     parser.add_argument(
+        "-q", "--queue",
+        help="""Name of queue to submit jobs to (defaults to no queue)""")
+
+    parser.add_argument(
         "-n", action="store_true",
         help="Dry run; Create jobfiles but do not submit or run any commands")
     parser.add_argument("-v", action="store_true", help="Verbose output")
@@ -303,6 +310,7 @@ if __name__ == "__main__":
     ppj = args.ppj
     job_name = args.jobname
     mem = args.mem != '0' and args.mem or None
+    queue = args.queue or None
     verbose = args.v
     dry_run = args.n
     afterok_pattern = args.afterok
@@ -384,6 +392,7 @@ if __name__ == "__main__":
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
         o_env = (env_mode == 'batch') and '-V' or ''
+        o_queue = queue and '-q {0}'.format(queue) or ''
 
         header = PBS_HEADER_TEMPLATE.format(**vars())
 
@@ -397,6 +406,7 @@ if __name__ == "__main__":
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
         o_env = (env_mode == 'batch') and '-V' or ''
+        o_queue = queue and '-q {0}'.format(queue) or ''
 
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
