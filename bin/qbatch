@@ -172,6 +172,8 @@ def pbs_find_jobs(patterns):
         for pattern in patterns:
             if fnmatch.fnmatch(name, pattern):
                 matches.append(jobid)
+            if fnmatch.fnmatch(jobid, pattern):
+                matches.append(jobid)
 
     return matches
 
@@ -246,9 +248,10 @@ if __name__ == "__main__":
 
     group = parser.add_argument_group('advanced options')
     group.add_argument(
-        "--afterok", action="append",
+        "--depend", action="append",
         help="""Wait for successful completion of job(s) with name matching
-        glob pattern before starting""")
+        given glob pattern or job id matching given job id(s) before
+        starting""")
     group.add_argument(
         "-d", "--workdir", default=os.getcwd(),
         help="Job working directory")
@@ -313,7 +316,7 @@ if __name__ == "__main__":
     queue = args.queue or None
     verbose = args.v
     dry_run = args.n
-    afterok_pattern = args.afterok
+    depend_pattern = args.depend
     workdir = args.workdir
     logdir = args.logdir.format(workdir=workdir)
     options = args.options
@@ -379,9 +382,9 @@ if __name__ == "__main__":
 
     if system == 'pbs':
         try:
-            matching_jobids = pbs_find_jobs(afterok_pattern)
+            matching_jobids = pbs_find_jobs(depend_pattern)
         except Exception as e:
-            sys.exit("Error matching afterok pattern {0}".format(str(e)))
+            sys.exit("Error matching depend pattern {0}".format(str(e)))
 
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
         o_walltime = walltime and "-l walltime={0}".format(walltime) or ''
@@ -400,8 +403,8 @@ if __name__ == "__main__":
         ppj = (ppj > 1) and '-pe {0} {1}'.format(pe, ppj) or ''
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
         o_walltime = walltime and "-l h_rt={0}".format(walltime) or ''
-        o_dependencies = afterok_pattern and '-hold_jid \'' + \
-            '\',\''.join(afterok_pattern) + '\'' or ''
+        o_dependencies = depend_pattern and '-hold_jid \'' + \
+            '\',\''.join(depend_pattern) + '\'' or ''
         o_options = '\n#$ '.join(options)
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
