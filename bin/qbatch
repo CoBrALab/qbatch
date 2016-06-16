@@ -244,7 +244,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "-n", action="store_true",
         help="Dry run; Create jobfiles but do not submit or run any commands")
-    parser.add_argument("-v", action="store_true", help="Verbose output")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Verbose output")
 
     group = parser.add_argument_group('advanced options')
     group.add_argument(
@@ -314,7 +318,7 @@ if __name__ == "__main__":
     job_name = args.jobname
     mem = args.mem != '0' and args.mem or None
     queue = args.queue or None
-    verbose = args.v
+    verbose = args.verbose
     dry_run = args.n
     depend_pattern = args.depend
     workdir = args.workdir
