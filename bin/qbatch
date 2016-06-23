@@ -149,7 +149,7 @@ def pbs_find_jobs(patterns):
     parsing its output.
     """
     if not patterns:
-        return []
+        return [], []
 
     if isinstance(patterns, str):
         patterns = [patterns]
@@ -164,18 +164,24 @@ def pbs_find_jobs(patterns):
         return []
     tree = ET.fromstring(output)
 
-    matches = []
+    array_matches = []
+    regular_matches = []
     for job in tree:
         jobid = job.find('Job_Id').text
         name = job.find('Job_Name').text
 
         for pattern in patterns:
             if fnmatch.fnmatch(name, pattern):
-                matches.append(jobid)
+                if fnmatch.fnmatch(jobid, '*[[][]]*'):
+                    array_matches.append(jobid)
+                else:
+                    regular_matches.append(jobid)
             if fnmatch.fnmatch(jobid, pattern):
-                matches.append(jobid)
-
-    return matches
+                if fnmatch.fnmatch(jobid, '*[[][]]*'):
+                    array_matches.append(jobid)
+                else:
+                    regular_matches.append(jobid)
+    return array_matches, regular_matches
 
 
 def which(program):
@@ -386,15 +392,28 @@ if __name__ == "__main__":
 
     if system == 'pbs':
         try:
-            matching_jobids = pbs_find_jobs(depend_pattern)
+            matching_array_jobids, matching_regular_jobids = pbs_find_jobs(
+                depend_pattern)
         except Exception as e:
             sys.exit("Error matching depend pattern {0}".format(str(e)))
 
+        if (matching_array_jobids and matching_regular_jobids):
+            print("Warning: depdendencies on both regular and array jobs \
+            found, this is only supported on Torque 6.0.2 and above. You \
+            may get qsub error code 168.",
+                  file=sys.stderr)
+
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
         o_walltime = walltime and "-l walltime={0}".format(walltime) or ''
-        o_dependencies = matching_jobids and \
-            ('-W depend=' + (use_array and 'afterokarray:' or 'afterok:') +
-                ':'.join(matching_jobids)) or ''
+        o_dependencies = '{0}'.format(
+            '-W depend=' if (matching_array_jobids or matching_regular_jobids)
+            else '')
+        o_dependencies += '{0}'.format(('afterok:' + ':'.join(
+            matching_regular_jobids)) if matching_regular_jobids else '')
+        o_dependencies += '{0}'.format(
+            ',' if (matching_array_jobids and matching_regular_jobids) else '')
+        o_dependencies += '{0}'.format(('afterokarray:' + ':'.join(
+            matching_array_jobids)) if matching_array_jobids else '')
         o_options = '\n#PBS '.join(options)
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
