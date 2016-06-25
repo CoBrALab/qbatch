@@ -161,7 +161,7 @@ def pbs_find_jobs(patterns):
         print(
             "WARN: Dependencies specified but no running jobs found",
             file=sys.stderr)
-        return []
+        return [], []
     tree = ET.fromstring(output)
 
     array_matches = []
