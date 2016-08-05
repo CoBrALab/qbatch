@@ -170,7 +170,7 @@ def pbs_find_jobs(patterns):
         jobid = job.find('Job_Id').text
         name = job.find('Job_Name').text
         state = job.find('job_state').text
-        
+
         # ignore completed or errored jobs
         if state in ['C', 'E']:
             continue
