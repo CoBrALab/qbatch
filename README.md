@@ -18,7 +18,7 @@ $ pip install qbatch
 ```
 
 ## Dependencies
-qbatch requires python (2 or 3) and [GNU Parallel](https://gnu.org/s/parallel).
+qbatch requires python (2.7 or 3) and [GNU Parallel](https://gnu.org/s/parallel).
 For Torque/PBS and gridengine clusters, qbatch requires job submission access
 via the ``qsub`` command. 
 
