@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import division
 import argparse
 import math
 import os
@@ -138,6 +139,16 @@ def int_or_percent(string):
         msg = "Must be an integer or positive integer percentage"
         raise argparse.ArgumentTypeError(msg)
     return string
+
+
+def compute_threads(ppj, ncores):
+    """Computes either number cores per job available"""
+    if not ppj:
+        ppj = 1
+    if ncores[-1] == '%':
+        return int(math.floor(ppj * float(ncores.strip('%')) / 100))
+    else:
+        return int(ppj) // int(ncores)
 
 
 def pbs_find_jobs(patterns):
@@ -452,6 +463,7 @@ if __name__ == "__main__":
             header,
             'CHUNK_SIZE={0}'.format(chunk_size),
             'CORES={0}'.format(ncores),
+            'THREADS_PER_COMMAND={0}'.format(compute_threads(ppj, ncores)),
             'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
             '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -v -j${CORES}',
             ''.join(task_list),
@@ -476,6 +488,8 @@ if __name__ == "__main__":
                 script_lines = [
                     header,
                     'CORES={0}'.format(ncores),
+                    'THREADS_PER_COMMAND={0}'.format(
+                        compute_threads(ppj, ncores)),
                     "parallel -v -j${CORES} << EOF",
                     ''.join(task_list[chunk * chunk_size:chunk *
                                       chunk_size + chunk_size]),
