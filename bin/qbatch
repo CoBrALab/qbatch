@@ -309,7 +309,10 @@ if __name__ == "__main__":
         limit given by the --mem option (e.g. --memvars=h_vmem,vf)""")
     group.add_argument(
         "--highmem", action="store_true",
-        help="(Scinet-only) Submit to high memory nodes")
+        help="(Scinet-only) Submit to 32GB high memory nodes")
+    group.add_argument(
+        "--highmem64", action="store_true",
+        help="(Scinet-only) Submit to 64GB high memory nodes")
     group.add_argument(
         "-i", action="store_true",
         help="Submit individual jobs instead of an array job")
@@ -339,7 +342,7 @@ if __name__ == "__main__":
     ppj = args.ppj
     job_name = args.jobname
     mem = args.mem != '0' and args.mem or None
-    queue = args.queue or None
+    queue = args.queue or (args.highmem64 and 'sandy') or None
     verbose = args.verbose
     dry_run = args.n
     depend_pattern = args.depend
@@ -351,7 +354,7 @@ if __name__ == "__main__":
     nodes = args.nodes
     pe = args.pe
     memvars = args.memvars.split(',')
-    highmem = args.highmem and ':m32g' or ''
+    highmem = (args.highmem and ':m32g') or (args.highmem64 and ':m64g') or ''
     use_array = not args.i
     system = args.b
     env_mode = args.env
