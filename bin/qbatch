@@ -461,6 +461,8 @@ if __name__ == "__main__":
     if use_array:
         script_lines = [
             header,
+            'which parallel > /dev/null || { echo "GNU parallel not '
+            'found. Exiting."; exit 1; }',
             'CHUNK_SIZE={0}'.format(chunk_size),
             'CORES={0}'.format(ncores),
             'THREADS_PER_COMMAND={0}'.format(compute_threads(ppj, ncores)),
@@ -487,6 +489,8 @@ if __name__ == "__main__":
             else:
                 script_lines = [
                     header,
+                    'which parallel > /dev/null || { echo "GNU parallel not '
+                    'found. Exiting."; exit 1; }',
                     'CORES={0}'.format(ncores),
                     'THREADS_PER_COMMAND={0}'.format(
                         compute_threads(ppj, ncores)),
