@@ -30,7 +30,7 @@ IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
 
 PBS_HEADER_TEMPLATE = """
 {shebang}
-#PBS -l nodes={nodes}{highmem}:ppn={ppj}
+#PBS -l nodes={nodes}:{nodes_spec}ppn={ppj}
 #PBS -j oe
 #PBS -o {logdir}
 #PBS -d {workdir}
@@ -308,8 +308,8 @@ if __name__ == "__main__":
         help="""A comma-separated list of variables to set with the memory
         limit given by the --mem option (e.g. --memvars=h_vmem,vf)""")
     group.add_argument(
-        "--highmem", action="store_true",
-        help="(Scinet-only) Submit to high memory nodes")
+        "--pbs-nodes-spec", action="append",
+        help="(PBS-only) String to be inserted into nodes= line of job")
     group.add_argument(
         "-i", action="store_true",
         help="Submit individual jobs instead of an array job")
@@ -351,7 +351,8 @@ if __name__ == "__main__":
     nodes = args.nodes
     pe = args.pe
     memvars = args.memvars.split(',')
-    highmem = args.highmem and ':m32g' or ''
+    nodes_spec = (args.pbs_nodes_spec and ':'.join(args.pbs_nodes_spec) +
+                  ':') or ''
     use_array = not args.i
     system = args.b
     env_mode = args.env
