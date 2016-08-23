@@ -466,7 +466,10 @@ if __name__ == "__main__":
             'found. Exiting."; exit 1; }',
             'CHUNK_SIZE={0}'.format(chunk_size),
             'CORES={0}'.format(ncores),
-            'THREADS_PER_COMMAND={0}'.format(compute_threads(ppj, ncores)),
+            'export THREADS_PER_COMMAND={0}'.format(
+                compute_threads(
+                    ppj,
+                    ncores)),
             'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
             '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -v -j${CORES}',
             ''.join(task_list),
@@ -493,7 +496,7 @@ if __name__ == "__main__":
                     'which parallel > /dev/null || { echo "GNU parallel not '
                     'found. Exiting."; exit 1; }',
                     'CORES={0}'.format(ncores),
-                    'THREADS_PER_COMMAND={0}'.format(
+                    'export THREADS_PER_COMMAND={0}'.format(
                         compute_threads(ppj, ncores)),
                     "parallel -v -j${CORES} << EOF",
                     ''.join(task_list[chunk * chunk_size:chunk *
