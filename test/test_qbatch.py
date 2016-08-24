@@ -57,7 +57,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
     for chunk in range(1, chunks + 1):
         os.environ['SGE_TASK_ID'] = str(chunk)
         expected = '\n'.join(
-            map(lambda x: 'echo {0}\n{0}'.format(x),
+            map(lambda x: 'echo {0}\t{0}'.format(x),
                 outputs[(chunk - 1) * chunk_size:chunk * chunk_size])) + '\n'
         array_pipe = command_pipe(array_script)
         out, _ = array_pipe.communicate()
@@ -84,7 +84,7 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
     for chunk in range(1, chunks + 1):
         os.environ['PBS_ARRAYID'] = str(chunk)
         expected = '\n'.join(
-            map(lambda x: 'echo {0}\n{0}'.format(x),
+            map(lambda x: 'echo {0}\t{0}'.format(x),
                 outputs[(chunk - 1) * chunk_size:chunk * chunk_size])) + '\n'
         array_pipe = command_pipe(array_script)
         out, _ = array_pipe.communicate()
@@ -101,7 +101,7 @@ def test_run_qbatch_local_piped_commands():
     out, err = p.communicate(cmds.encode('UTF-8'))
 
     expected, _ = command_pipe(
-        'parallel -v -j1').communicate(cmds.encode('UTF-8'))
+        'parallel --tag --line-buffer -j1').communicate(cmds.encode('UTF-8'))
 
     assert p.returncode == 0, \
         "Return code = {0}".format(err)
