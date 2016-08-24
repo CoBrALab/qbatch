@@ -415,10 +415,9 @@ if __name__ == "__main__":
             sys.exit("Error matching depend pattern {0}".format(str(e)))
 
         if (matching_array_jobids and matching_regular_jobids):
-            print("Warning: depdendencies on both regular and array jobs \
-            found, this is only supported on Torque 6.0.2 and above. You \
-            may get qsub error code 168.",
-                  file=sys.stderr)
+            print("Warning: depdendencies on both regular and array jobs "
+                  "found, this is only supported on Torque 6.0.2 and above. "
+                  "You may get qsub error code 168.", file=sys.stderr)
 
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
         o_walltime = walltime and "-l walltime={0}".format(walltime) or ''
