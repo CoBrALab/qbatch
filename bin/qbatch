@@ -222,7 +222,6 @@ def which(program):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [options] <command_file>",
         description="""Submits a list of commands to a queueing system.
         The list of commands can be broken up into 'chunks' when submitted, so
         that the commands in each chunk run in parallel (using GNU parallel).
@@ -327,7 +326,7 @@ if __name__ == "__main__":
               does not propagate any environment variables.""")
 
     if len(sys.argv) == 1:
-        parser.print_help()
+        parser.print_usage()
         sys.exit(1)
 
     args = parser.parse_args()
