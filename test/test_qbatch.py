@@ -64,7 +64,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
 
         assert array_pipe.returncode == 0, \
             "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
-        assert out.decode('UTF-8') == expected, \
+        assert set(out.decode('UTF-8').split('\n')) == set(expected.split('\n')), \
             "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
@@ -91,7 +91,7 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
 
         assert array_pipe.returncode == 0, \
             "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
-        assert out.decode('UTF-8') == expected, \
+        assert set(out.decode('UTF-8').split('\n')) == set(expected.split('\n')), \
             "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
@@ -105,5 +105,5 @@ def test_run_qbatch_local_piped_commands():
 
     assert p.returncode == 0, \
         "Return code = {0}".format(err)
-    assert out == expected, \
+    assert set(out.split('\n')) == set(expected.split('\n')), \
         "Expected {0} but got {1}".format(expected, out)
