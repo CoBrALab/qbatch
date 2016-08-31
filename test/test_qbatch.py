@@ -23,19 +23,20 @@ def teardown_module():
 
 
 def command_pipe(command):
-    return Popen(shlex.split(command), stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    return Popen(shlex.split(command), stdin=PIPE, stdout=PIPE, stderr=PIPE, 
+            universal_newlines=True)
 
 
 def test_qbatch_help():
     p = command_pipe('qbatch --help')
-    out, err = p.communicate(''.encode('UTF-8'))
+    out, err = p.communicate()
     assert p.returncode == 0, err
 
 
 def test_run_qbatch_dryrun_single_output_exists():
     cmds = "\n".join(["echo hello"])
     p = command_pipe('qbatch -n -')
-    out, err = p.communicate(cmds.encode('UTF-8'))
+    out, err = p.communicate(cmds)
 
     assert p.returncode == 0
     assert exists(join(tempdir, 'STDIN.0'))
@@ -48,7 +49,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
 
     cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
     p = command_pipe('qbatch -n -b sge -c {0} -'.format(chunk_size))
-    out, err = p.communicate(cmds.encode('UTF-8'))
+    out, err = p.communicate(cmds)
 
     array_script = join(tempdir, 'STDIN.array')
     assert p.returncode == 0
@@ -64,7 +65,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
 
         assert array_pipe.returncode == 0, \
             "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
-        assert set(out.decode('UTF-8').split('\n')) == set(expected.split('\n')), \
+        assert set(out.split('\n')) == set(expected.split('\n')), \
             "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
@@ -75,7 +76,7 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
 
     cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
     p = command_pipe('qbatch -n -b pbs -c {0} -'.format(chunk_size))
-    out, err = p.communicate(cmds.encode('UTF-8'))
+    out, err = p.communicate(cmds)
 
     array_script = join(tempdir, 'STDIN.array')
     assert p.returncode == 0
@@ -91,19 +92,20 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
 
         assert array_pipe.returncode == 0, \
             "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
-        assert set(out.decode('UTF-8').split('\n')) == set(expected.split('\n')), \
+        assert set(out.split('\n')) == set(expected.split('\n')), \
             "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
 def test_run_qbatch_local_piped_commands():
     cmds = "\n".join(["echo hello"] * 24)
     p = command_pipe('qbatch -b local -')
-    out, err = p.communicate(cmds.encode('UTF-8'))
+    out, err = p.communicate(cmds)
 
     expected, _ = command_pipe(
-        'parallel --tag --line-buffer -j1').communicate(cmds.encode('UTF-8'))
+        'parallel --tag --line-buffer -j1').communicate(cmds)
 
     assert p.returncode == 0, \
         "Return code = {0}".format(err)
+
     assert set(out.split('\n')) == set(expected.split('\n')), \
         "Expected {0} but got {1}".format(expected, out)
