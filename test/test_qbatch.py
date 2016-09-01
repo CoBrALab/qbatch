@@ -23,8 +23,8 @@ def teardown_module():
 
 
 def command_pipe(command):
-    return Popen(shlex.split(command), stdin=PIPE, stdout=PIPE, stderr=PIPE, 
-            universal_newlines=True)
+    return Popen(shlex.split(command), stdin=PIPE, stdout=PIPE, stderr=PIPE,
+                 universal_newlines=True)
 
 
 def test_qbatch_help():
