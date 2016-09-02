@@ -19,6 +19,7 @@ setup(
     license='Unlicense',
     url="https://github.com/pipitone/qbatch",
     long_description=description,
+    packages=['qbatch'],
     scripts=["bin/qbatch"],
     setup_requires=['nose>=1.0'],
     classifiers=[

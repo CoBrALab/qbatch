@@ -21,4 +21,4 @@ install:
 
 script:
     - nosetests -v
-    - pep8 bin/qbatch test
+    - pep8 qbatch/ test/ bin/qbatch setup.py

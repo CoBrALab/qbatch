@@ -1,9 +1,10 @@
-from os.path import join, exists
 import os
+import qbatch.command_line
 import shutil
 import shlex
-from subprocess import Popen, PIPE
 import tempfile
+from os.path import join, exists
+from subprocess import Popen, PIPE
 
 tempdir = None
 
