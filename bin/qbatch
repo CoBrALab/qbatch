@@ -259,7 +259,7 @@ if __name__ == "__main__":
         be set on each variable specified in --memvars. To not set any memory
         requirement, set this to 0""")
     parser.add_argument(
-        "-q", "--queue",
+        "-q", "--queue", default=QUEUE,
         help="""Name of queue to submit jobs to (defaults to no queue)""")
 
     parser.add_argument(
@@ -338,7 +338,7 @@ if __name__ == "__main__":
     ppj = args.ppj
     job_name = args.jobname
     mem = args.mem != '0' and args.mem or None
-    queue = args.queue or None
+    queue = args.queue
     verbose = args.verbose
     dry_run = args.n
     depend_pattern = args.depend
