@@ -13,7 +13,7 @@ import fnmatch
 import errno
 
 # setup defaults (let environment override)
-PPJ = os.environ.get("QBATCH_PPJ", 1)
+PPJ = os.environ.get("QBATCH_PPJ", "1")
 CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
 CORES = os.environ.get("QBATCH_CORES", PPJ)
 SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
