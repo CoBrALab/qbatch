@@ -5,12 +5,15 @@ import argparse
 import math
 import os
 import os.path
+import pkg_resources
 import re
 import subprocess
 import stat
 import sys
 import fnmatch
 import errno
+
+__version__ = pkg_resources.require("qbatch")[0].version
 
 # setup defaults (let environment override)
 PPJ = os.environ.get("QBATCH_PPJ", "1")
@@ -271,6 +274,7 @@ if __name__ == "__main__":
         "--verbose",
         action="store_true",
         help="Verbose output")
+    parser.add_argument('--version', action='version', version=__version__)
 
     group = parser.add_argument_group('advanced options')
     group.add_argument(
