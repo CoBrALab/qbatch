@@ -480,7 +480,7 @@ if __name__ == "__main__":
             'CORES={0}'.format(ncores),
             'export THREADS_PER_COMMAND={0}'.format(
                 compute_threads(
-                    ppj,
+                    args.ppj,
                     ncores)),
             'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
             '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -j${CORES} --tag'
