@@ -19,7 +19,6 @@ __version__ = pkg_resources.require("qbatch")[0].version
 PPJ = os.environ.get("QBATCH_PPJ", "1")
 CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
 CORES = os.environ.get("QBATCH_CORES", PPJ)
-SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
 NODES = os.environ.get("QBATCH_NODES", 1)
 PE = os.environ.get("QBATCH_PE", "smp")
 MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
@@ -27,6 +26,14 @@ MEM = os.environ.get("QBATCH_MEM", "0")
 SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
 QUEUE = os.environ.get("QBATCH_QUEUE", None)
 SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
+
+if os.getenv('SGE_ROOT'):
+    SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
+elif os.getenv('PBS_DEAFULT'):
+    SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
+else:
+    SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
+
 
 # environment vars to ignore when copying the environment to the job script
 IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
