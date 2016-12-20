@@ -26,6 +26,8 @@ MEM = os.environ.get("QBATCH_MEM", "0")
 SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
 QUEUE = os.environ.get("QBATCH_QUEUE", None)
 SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
+OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
+    "QBATCH_OPTIONS") else []
 
 if os.getenv('SGE_ROOT'):
     SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
@@ -296,7 +298,7 @@ if __name__ == "__main__":
         "--logdir", action="store", default="{workdir}/logs",
         help="""Directory to save store log files""")
     group.add_argument(
-        "-o", "--options", action="append", default=[],
+        "-o", "--options", action="append", default=OPTIONS,
         help="""Custom options passed directly to the queuing system (e.g
         --options "-l vf=8G". This option can be given multiple times""")
     group.add_argument(
