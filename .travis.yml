@@ -12,10 +12,16 @@ python:
 addons:
     apt:
         packages:
-        - parallel
         - gridengine-client
 
 install:
+    - wget https://ftp.gnu.org/gnu/parallel/parallel-latest.tar.bz2
+    - tar -xvjf parallel*
+    - cd parallel*
+    - ./configure
+    - make
+    - sudo make install
+    - cd ..    
     - pip install .
     - pip install pep8
 
