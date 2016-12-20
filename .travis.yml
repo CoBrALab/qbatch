@@ -1,5 +1,5 @@
-sudo: required
-dist: trusty
+sudo: require
+dist: false
 
 language: python
 python: 
