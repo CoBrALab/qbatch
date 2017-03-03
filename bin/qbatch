@@ -494,6 +494,7 @@ if __name__ == "__main__":
         script = open(scriptfile, 'w')
         script.write('\n'.join(script_lines))
         if footer_commands:
+            script.write('\n')
             script.write(footer_commands)
         script.close()
         job_scripts.append(scriptfile)
@@ -520,6 +521,7 @@ if __name__ == "__main__":
             script = open(scriptfile, "w")
             script.write('\n'.join(script_lines))
             if footer_commands:
+                script.write('\n')
                 script.write(footer_commands)
             script.close()
             job_scripts.append(scriptfile)
