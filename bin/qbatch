@@ -86,6 +86,9 @@ LOCAL_TEMPLATE = """
 cd {workdir}
 """.strip()
 
+CONTAINER_TEMPLATE = """
+""".strip()
+
 
 def run_command(command, logfile=None):
     # Run command and collect stdout
@@ -327,10 +330,12 @@ if __name__ == "__main__":
         "-i", action="store_true",
         help="Submit individual jobs instead of an array job")
     group.add_argument(
-        "-b", default=SYSTEM, choices=['pbs', 'sge', 'local'],
+        "-b", default=SYSTEM, choices=['pbs', 'sge', 'local', 'container'],
         help="""The type of queueing system to use. 'pbs' and 'sge' both make
         calls to qsub to submit jobs. 'local' runs the entire command list
-        (without chunking) locally.""")
+        (without chunking) locally. 'container' creates a joblist and metadata
+        file, to pass commands out of a container to a monitoring process for
+        submission to a batch system.""")
     group.add_argument(
         "--env", choices=['copied', 'batch', 'none'], default='copied',
         help="""Determines how your environment is propagated when your
@@ -470,59 +475,75 @@ if __name__ == "__main__":
     elif system == 'local':
         header = LOCAL_TEMPLATE.format(**vars())
 
+    elif system == 'container':
+        header = CONTAINER_TEMPLATE.format(**vars())
+
     # emit job scripts
     job_scripts = []
     mkdirp(SCRIPT_FOLDER)
-    if use_array:
+    if system == 'container':
         script_lines = [
-            header,
-            'which parallel > /dev/null || { echo "GNU parallel not '
-            'found. Exiting."; exit 1; }',
-            'CHUNK_SIZE={0}'.format(chunk_size),
-            'CORES={0}'.format(ncores),
-            'export THREADS_PER_COMMAND={0}'.format(
-                compute_threads(
-                    args.ppj,
-                    ncores)),
-            'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
-            '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -j${CORES} --tag'
-            ' --line-buffer',
-            ''.join(task_list),
-            'EOF']
-
-        scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".array")
+            ''.join(task_list)
+        ]
+        scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".joblist")
+        metafile = os.path.join(SCRIPT_FOLDER, job_name + ".meta")
         script = open(scriptfile, 'w')
+        meta = open(metafile, 'w')
         script.write('\n'.join(script_lines))
-        if footer_commands:
-            script.write(footer_commands)
+        meta.write(" ".join(sys.argv[1:]))
         script.close()
-        job_scripts.append(scriptfile)
+        meta.close()
     else:
-        for chunk in range(num_jobs):
-            scriptfile = os.path.join(
-                SCRIPT_FOLDER, "{0}.{1}".format(job_name, chunk))
-            if len(task_list) == 1:
-                script_lines = [
-                    header,
-                    ''.join(task_list)]
-            else:
-                script_lines = [
-                    header,
-                    'which parallel > /dev/null || { echo "GNU parallel not '
-                    'found. Exiting."; exit 1; }',
-                    'CORES={0}'.format(ncores),
-                    'export THREADS_PER_COMMAND={0}'.format(
-                        compute_threads(args.ppj, ncores)),
-                    "parallel -j${CORES} --tag --line-buffer << EOF",
-                    ''.join(task_list[chunk * chunk_size:chunk *
-                                      chunk_size + chunk_size]),
-                    'EOF']
-            script = open(scriptfile, "w")
+        if use_array:
+            script_lines = [
+                header,
+                'which parallel > /dev/null || { echo "GNU parallel not '
+                'found. Exiting."; exit 1; }',
+                'CHUNK_SIZE={0}'.format(chunk_size),
+                'CORES={0}'.format(ncores),
+                'export THREADS_PER_COMMAND={0}'.format(
+                    compute_threads(
+                        args.ppj,
+                        ncores)),
+                'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
+                '+$((${CHUNK_SIZE} - 1))p" << EOF | parallel -j${CORES} --tag'
+                ' --line-buffer',
+                ''.join(task_list),
+                'EOF']
+
+            scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".array")
+            script = open(scriptfile, 'w')
             script.write('\n'.join(script_lines))
             if footer_commands:
                 script.write(footer_commands)
             script.close()
             job_scripts.append(scriptfile)
+        else:
+            for chunk in range(num_jobs):
+                scriptfile = os.path.join(
+                    SCRIPT_FOLDER, "{0}.{1}".format(job_name, chunk))
+                if len(task_list) == 1:
+                    script_lines = [
+                        header,
+                        ''.join(task_list)]
+                else:
+                    script_lines = [
+                        header,
+                        'which parallel > /dev/null || { echo "GNU parallel '
+                        'not found. Exiting."; exit 1; }',
+                        'CORES={0}'.format(ncores),
+                        'export THREADS_PER_COMMAND={0}'.format(
+                            compute_threads(args.ppj, ncores)),
+                        "parallel -j${CORES} --tag --line-buffer << EOF",
+                        ''.join(task_list[chunk * chunk_size:chunk *
+                                          chunk_size + chunk_size]),
+                        'EOF']
+                script = open(scriptfile, "w")
+                script.write('\n'.join(script_lines))
+                if footer_commands:
+                    script.write(footer_commands)
+                script.close()
+                job_scripts.append(scriptfile)
 
     # execute the job script(s)
     for script in job_scripts:
@@ -536,7 +557,7 @@ if __name__ == "__main__":
             if return_code:
                 sys.exit("qsub call " +
                          "returned error code {0}".format(return_code))
-        else:
+        elif system == 'local':
             logfile = "{0}/{1}.log".format(logdir, job_name)
             if verbose:
                 print("Launching jobscript. Output to {0}".format(logfile))
