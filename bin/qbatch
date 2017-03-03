@@ -490,7 +490,7 @@ if __name__ == "__main__":
         script = open(scriptfile, 'w')
         meta = open(metafile, 'w')
         script.write('\n'.join(script_lines))
-        meta.write(" ".join(sys.argv[1:]))
+        meta.write(" ".join(sys.argv[1:-1]))
         script.close()
         meta.close()
     else:
