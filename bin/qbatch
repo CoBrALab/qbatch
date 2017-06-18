@@ -496,8 +496,11 @@ if __name__ == "__main__":
     elif system == 'slurm':
         ppj = (ppj > 1) and '-n {0}'.format(ppj) or ''
         o_array = use_array and '--array=1-{0}'.format(num_jobs) or ''
-        o_walltime = walltime and "--time={:1.0f}".format(int(walltime)/60) or ''
-        o_dependencies = depend_pattern and '--depend= \'' + \
+        if walltime.find(":"):
+            o_walltime = walltime and "--time={0}".format(walltime) or ''
+        else:
+            o_walltime = walltime and "--time={:1.0f}".format(int(walltime)/60) or ''
+        o_dependencies = depend_pattern and '--depend=\'' + \
             '\',\''.join(depend_pattern) + '\'' or ''
         o_options = '\n#SBATCH '.join(options)
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
