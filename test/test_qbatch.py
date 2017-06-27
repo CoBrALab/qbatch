@@ -102,6 +102,34 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
             "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
+def test_run_qbatch_slurm_dryrun_array_piped_chunks():
+    chunk_size = 10
+    chunks = 5
+    outputs = range(chunk_size * chunks)
+
+    cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
+    p = command_pipe('qbatch --env none -n -j2 \
+                     -b slurm -c {0} -'.format(chunk_size))
+    out, _ = p.communicate(cmds.encode())
+
+    array_script = join(tempdir, 'STDIN.array')
+    assert p.returncode == 0
+    assert exists(array_script)
+
+    for chunk in range(1, chunks + 1):
+        os.environ['SLURM_ARRAY_TASK_ID'] = str(chunk)
+        expected = '\n'.join(
+            map(lambda x: 'echo {0}\t{0}'.format(x),
+                outputs[(chunk - 1) * chunk_size:chunk * chunk_size])) + '\n'
+        array_pipe = command_pipe(array_script)
+        out, _ = array_pipe.communicate()
+
+        assert array_pipe.returncode == 0, \
+            "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
+        assert set(out.decode().splitlines()) == set(expected.splitlines()), \
+            "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
+
+
 def test_run_qbatch_local_piped_commands():
     cmds = "\n".join(["echo hello"] * 24)
     p = command_pipe('qbatch --env none -j2 -b local -')
