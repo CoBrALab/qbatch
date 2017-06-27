@@ -525,11 +525,13 @@ if __name__ == "__main__":
     elif system == 'slurm':
         ppj = (ppj > 1) and '-n {0}'.format(ppj) or ''
         o_array = use_array and '--array=1-{0}'.format(num_jobs) or ''
-        if walltime.find(":") > 0:
-            o_walltime = walltime and "--time={0}".format(walltime) or ''
+        if (walltime and walltime.find(":") > 0):
+            o_walltime = "--time={0}".format(walltime)
+        elif walltime:
+            o_walltime = "--time={:1.0f}".format(
+                int(walltime) / 60)
         else:
-            o_walltime = walltime and "--time={:1.0f}".format(
-                int(walltime) / 60) or ''
+            o_walltime = ''
         try:
             matching_regular_jobids = slurm_find_jobs(
                 depend_pattern)
