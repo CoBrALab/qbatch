@@ -29,7 +29,7 @@ SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
 OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
     "QBATCH_OPTIONS") else []
 
-if subprocess.call(['which', 'sbatch'], stdout=open(os.devnull)) == 0:
+if subprocess.call(['which', 'sbatch'], stdout=open(os.devnull, 'w')) == 0:
     SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
 elif os.getenv('SGE_ROOT'):
     SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")

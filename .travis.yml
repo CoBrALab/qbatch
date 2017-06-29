@@ -13,10 +13,7 @@ addons:
     apt:
         packages:
         - gridengine-client
-
-before_install:
-    - sudo apt-get install -y slurm-llnl
-    - sudo /usr/sbin/create-munge-key
+        - slurm-llnl
 
 install:
     - wget https://ftp.gnu.org/gnu/parallel/parallel-latest.tar.bz2
