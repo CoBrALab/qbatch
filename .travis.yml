@@ -13,6 +13,7 @@ addons:
     apt:
         packages:
         - gridengine-client
+        - slurm-llnl
 
 install:
     - wget https://ftp.gnu.org/gnu/parallel/parallel-latest.tar.bz2

@@ -29,7 +29,9 @@ SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
 OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
     "QBATCH_OPTIONS") else []
 
-if os.getenv('SGE_ROOT'):
+if subprocess.call(['which', 'sbatch'], stdout=open(os.devnull, 'w')) == 0:
+    SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
+elif os.getenv('SGE_ROOT'):
     SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
 elif os.getenv('PBS_DEAFULT'):
     SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
@@ -77,6 +79,25 @@ SGE_HEADER_TEMPLATE = """
 {env}
 {header_commands}
 ARRAY_IND=$SGE_TASK_ID
+""".strip()
+
+SLURM_HEADER_TEMPLATE = """
+#!{shell}
+#SBATCH {ppj}
+#SBATCH {logfile}
+#SBATCH --workdir={workdir}
+#SBATCH --job-name={job_name}
+#SBATCH {o_memopts}
+#SBATCH {o_queue}
+#SBATCH {o_array}
+#SBATCH {o_walltime}
+#SBATCH {o_dependencies}
+#SBATCH {o_options}
+#SBATCH {o_env}
+#SBATCH {o_queue}
+{env}
+{header_commands}
+ARRAY_IND=$SLURM_ARRAY_TASK_ID
 """.strip()
 
 LOCAL_TEMPLATE = """
@@ -213,6 +234,35 @@ def pbs_find_jobs(patterns):
     return array_matches, regular_matches
 
 
+def slurm_find_jobs(patterns):
+    """Finds jobs with names matching a given list of patterns
+    Returns a list of job IDs.
+    Raises an Exception if there is an error running the 'squeue' command or
+    parsing its output.
+    """
+    if not patterns:
+        return []
+
+    if isinstance(patterns, str):
+        patterns = [patterns]
+
+    output = subprocess.check_output(['squeue', '--format="%j %A %T %u"'])
+    if not output:
+        print(
+            "WARN: Dependencies specified but no running jobs found",
+            file=sys.stderr)
+        return [], []
+
+    regular_matches = []
+    for line in output.split("\n"):
+        for pattern in patterns:
+            # ignore completed jobs
+            if re.search(pattern, line) and not re.search('COMPLETED', line):
+                jobid = line.split()[1]
+                regular_matches.append(jobid)
+    return regular_matches
+
+
 def which(program):
     # Check for existence of important programs
     # Stolen from
@@ -232,6 +282,7 @@ def which(program):
                 return exe_file
 
     return None
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -261,7 +312,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ppj", default=PPJ, type=positive_int,
         help="""Requested number of processors per job (aka ppn on PBS,
-        slots on SGE). Cores can be over subscribed if -j is larger than --ppj
+        slots on SGE, cpus per task on SLURM). Cores can be over subscribed
+        if -j is larger than --ppj
         (useful to make use of hyper-threading on some systems)""")
     parser.add_argument(
         "-N", "--jobname", action="store",
@@ -327,10 +379,10 @@ if __name__ == "__main__":
         "-i", action="store_true",
         help="Submit individual jobs instead of an array job")
     group.add_argument(
-        "-b", default=SYSTEM, choices=['pbs', 'sge', 'local'],
+        "-b", default=SYSTEM, choices=['pbs', 'sge', 'slurm', 'local'],
         help="""The type of queueing system to use. 'pbs' and 'sge' both make
-        calls to qsub to submit jobs. 'local' runs the entire command list
-        (without chunking) locally.""")
+        calls to qsub to submit jobs. 'slurm' calls sbatch.
+        'local' runs the entire command list (without chunking) locally.""")
     group.add_argument(
         "--env", choices=['copied', 'batch', 'none'], default='copied',
         help="""Determines how your environment is propagated when your
@@ -379,6 +431,9 @@ if __name__ == "__main__":
     if system == 'sge' or system == 'pbs':
         if not which("qsub"):
             sys.exit("qsub command not found")
+    if system == 'slurm':
+        if not which("sbatch"):
+            sys.exit("sbatch command not found")
 
     if not which("parallel"):
         sys.exit("parallel command not found")
@@ -467,6 +522,34 @@ if __name__ == "__main__":
 
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
+    elif system == 'slurm':
+        ppj = (ppj > 1) and '-n {0}'.format(ppj) or ''
+        o_array = use_array and '--array=1-{0}'.format(num_jobs) or ''
+        if (walltime and walltime.find(":") > 0):
+            o_walltime = "--time={0}".format(walltime)
+        elif walltime:
+            o_walltime = "--time={:1.0f}".format(
+                int(walltime) / 60)
+        else:
+            o_walltime = ''
+        try:
+            matching_regular_jobids = slurm_find_jobs(
+                depend_pattern)
+        except Exception as e:
+            sys.exit("Error matching depend pattern {0}".format(str(e)))
+        o_dependencies = '{0}'.format(
+            '--depend=afterok:' + ':'.join(matching_regular_jobids)
+            if (matching_regular_jobids) else '')
+        o_options = '\n#SBATCH '.join(options)
+        mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
+        o_memopts = (mem and mem_string) and '--{0}'.format(mem_string) or ''
+        o_env = (env_mode == 'batch') and '-V' or ''
+        logfile = logdir and '--output={0}/slurm-{1}.out'.format(
+            logdir, job_name) or ''
+        o_queue = queue and '--qos={0}'.format(queue) or ''
+
+        header = SLURM_HEADER_TEMPLATE.format(**vars())
+
     elif system == 'local':
         header = LOCAL_TEMPLATE.format(**vars())
 
@@ -537,6 +620,15 @@ if __name__ == "__main__":
             return_code = subprocess.call(['qsub', script])
             if return_code:
                 sys.exit("qsub call " +
+                         "returned error code {0}".format(return_code))
+        if system == 'slurm':
+            if verbose:
+                print("Running: sbatch {0}".format(script))
+            if dry_run:
+                continue
+            return_code = subprocess.call(['sbatch', script])
+            if return_code:
+                sys.exit("sbatch call " +
                          "returned error code {0}".format(return_code))
         else:
             logfile = "{0}/{1}.log".format(logdir, job_name)

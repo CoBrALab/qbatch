@@ -20,7 +20,7 @@ $ pip install qbatch
 ## Dependencies
 qbatch requires python (2.7 or 3) and [GNU Parallel](https://gnu.org/s/parallel).
 For Torque/PBS and gridengine clusters, qbatch requires job submission access
-via the ``qsub`` command. 
+via the ``qsub`` command. For Slurm workload manager, qbatch depends on the ``sbatch`` command.
 
 ## Environment variable defaults
 qbatch supports several environment variables to customize defaults for your
@@ -32,9 +32,10 @@ $ export QBATCH_CHUNKSIZE=$QBATCH_PPJ    # commands to run per job
 $ export QBATCH_CORES=$QBATCH_PPJ        # commonds to run in parallel per job
 $ export QBATCH_MEM="0"                  # requested memory per job
 $ export QBATCH_MEMVARS="mem"            # memory request variable to set
-$ export QBATCH_SYSTEM="pbs"             # queuing system to use
+$ export QBATCH_SYSTEM="pbs"             # queuing system to use ("pbs", "sge", or "slurm")
 $ export QBATCH_NODES=1                  # (PBS-only) nodes to request per job
 $ export QBATCH_PE="smp"                 # (SGE-only) parallel environment name
+$ export QBATCH_QUEUE="1day"             # (Slurm-only) cluster-specific name of queue (--qos option)
 ```
 
 These correspond to the same named options in the qbatch help output above.
