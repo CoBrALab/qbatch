@@ -623,7 +623,7 @@ if __name__ == "__main__":
             if return_code:
                 sys.exit("qsub call " +
                          "returned error code {0}".format(return_code))
-        if system == 'slurm':
+        elif system == 'slurm':
             if verbose:
                 print("Running: sbatch {0}".format(script))
             if dry_run:
