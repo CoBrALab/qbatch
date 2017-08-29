@@ -29,14 +29,16 @@ SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
 OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
     "QBATCH_OPTIONS") else []
 
-if subprocess.call(['which', 'sbatch'], stdout=open(os.devnull, 'w')) == 0:
-    SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
-elif os.getenv('SGE_ROOT'):
-    SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
-elif os.getenv('PBS_DEAFULT'):
-    SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
-else:
-    SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
+with open(os.devnull, 'w') as dev_null:
+    if subprocess.call(['which', 'sbatch'], stdout=dev_null) == 0:
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
+    elif os.getenv('SGE_ROOT'):
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
+    elif os.getenv('PBS_DEFAULT') or subprocess.call(["which", "pbs-config"],
+                                                     stdout=dev_null) == 0:
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
+    else:
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
 
 
 # environment vars to ignore when copying the environment to the job script
@@ -621,7 +623,7 @@ if __name__ == "__main__":
             if return_code:
                 sys.exit("qsub call " +
                          "returned error code {0}".format(return_code))
-        if system == 'slurm':
+        elif system == 'slurm':
             if verbose:
                 print("Running: sbatch {0}".format(script))
             if dry_run:
