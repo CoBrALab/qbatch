@@ -546,7 +546,7 @@ if __name__ == "__main__":
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '--{0}'.format(mem_string) or ''
         o_env = (env_mode == 'batch') and '-V' or ''
-        logfile = logdir and '--output={0}/slurm-{1}.out'.format(
+        logfile = logdir and '--output={0}/slurm-{1}-%J.out'.format(
             logdir, job_name) or ''
         o_queue = queue and '--qos={0}'.format(queue) or ''
 
