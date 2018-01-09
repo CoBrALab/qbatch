@@ -29,18 +29,6 @@ SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
 OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
     "QBATCH_OPTIONS") else []
 
-with open(os.devnull, 'w') as dev_null:
-    if subprocess.call(['which', 'sbatch'], stdout=dev_null) == 0:
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
-    elif os.getenv('SGE_ROOT'):
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
-    elif os.getenv('PBS_DEFAULT') or subprocess.call(["which", "pbs-config"],
-                                                     stdout=dev_null) == 0:
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
-    else:
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
-
-
 # environment vars to ignore when copying the environment to the job script
 IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
                    'BASH_FUNC_*']
@@ -287,6 +275,15 @@ def which(program):
 
 
 if __name__ == "__main__":
+    if which('sbatch'):
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
+    elif os.getenv('SGE_ROOT'):
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
+    elif os.getenv('PBS_DEFAULT') or which("pbs-config"):
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
+    else:
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
+
     parser = argparse.ArgumentParser(
         description="""Submits a list of commands to a queueing system.
         The list of commands can be broken up into 'chunks' when submitted, so
@@ -436,7 +433,6 @@ if __name__ == "__main__":
     if system == 'slurm':
         if not which("sbatch"):
             sys.exit("sbatch command not found")
-
     if not which("parallel"):
         sys.exit("parallel command not found")
 
