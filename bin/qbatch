@@ -85,6 +85,7 @@ ARRAY_IND=$SGE_TASK_ID
 
 SLURM_HEADER_TEMPLATE = """
 #!{shell}
+#SBATCH --nodes={nodes}
 #SBATCH {ppj}
 #SBATCH {logfile}
 #SBATCH --workdir={workdir}
