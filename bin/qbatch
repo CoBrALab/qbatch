@@ -365,7 +365,7 @@ if __name__ == "__main__":
         be run once per job. This option can be given multiple times""")
     group.add_argument(
         "--nodes", default=NODES, type=positive_int,
-        help="(PBS-only) Nodes to request per job")
+        help="(PBS and SLURM only) Nodes to request per job")
     group.add_argument(
         "--pe", default=PE,
         help="""(SGE-only) The parallel environment to use if more than one
