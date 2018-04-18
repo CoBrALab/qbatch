@@ -525,7 +525,7 @@ if __name__ == "__main__":
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'slurm':
-        ppj = (ppj > 1) and '-n {0}'.format(ppj) or ''
+        ppj = (ppj > 1) and '--cpus-per-task={0}'.format(ppj) or ''
         o_array = use_array and '--array=1-{0}'.format(num_jobs) or ''
         if (walltime and walltime.find(":") > 0):
             o_walltime = "--time={0}".format(walltime)
