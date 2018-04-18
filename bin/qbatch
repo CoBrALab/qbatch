@@ -545,7 +545,7 @@ if __name__ == "__main__":
         o_options = '\n#SBATCH '.join(options)
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '--{0}'.format(mem_string) or ''
-        o_env = (env_mode == 'batch') and '-V' or ''
+        o_env = (env_mode == 'batch') and '--export=ALL' or '--export=NONE'
         logfile = logdir and '--output={0}/slurm-{1}-%J.out'.format(
             logdir, job_name) or ''
         o_queue = queue and '--partition={0}'.format(queue) or ''
