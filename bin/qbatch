@@ -96,7 +96,6 @@ SLURM_HEADER_TEMPLATE = """
 #SBATCH {o_dependencies}
 #SBATCH {o_options}
 #SBATCH {o_env}
-#SBATCH {o_queue}
 {env}
 {header_commands}
 ARRAY_IND=$SLURM_ARRAY_TASK_ID
@@ -548,7 +547,7 @@ if __name__ == "__main__":
         o_env = (env_mode == 'batch') and '-V' or ''
         logfile = logdir and '--output={0}/slurm-{1}-%J.out'.format(
             logdir, job_name) or ''
-        o_queue = queue and '--qos={0}'.format(queue) or ''
+        o_queue = queue and '--partition={0}'.format(queue) or ''
 
         header = SLURM_HEADER_TEMPLATE.format(**vars())
 
