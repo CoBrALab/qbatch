@@ -638,4 +638,7 @@ if __name__ == "__main__":
                 print("Launching jobscript. Output to {0}".format(logfile))
             if dry_run:
                 continue
-            run_command(script, logfile=logfile)
+            return_code = run_command(script, logfile=logfile)
+            if return_code:
+                sys.exit("local run call " +
+                         "returned error code {0}".format(return_code))
