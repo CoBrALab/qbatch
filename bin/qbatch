@@ -29,18 +29,6 @@ SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
 OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
     "QBATCH_OPTIONS") else []
 
-with open(os.devnull, 'w') as dev_null:
-    if subprocess.call(['which', 'sbatch'], stdout=dev_null) == 0:
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
-    elif os.getenv('SGE_ROOT'):
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
-    elif os.getenv('PBS_DEFAULT') or subprocess.call(["which", "pbs-config"],
-                                                     stdout=dev_null) == 0:
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
-    else:
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
-
-
 # environment vars to ignore when copying the environment to the job script
 IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
                    'BASH_FUNC_*']
@@ -85,6 +73,7 @@ ARRAY_IND=$SGE_TASK_ID
 
 SLURM_HEADER_TEMPLATE = """
 #!{shell}
+#SBATCH --nodes={nodes}
 #SBATCH {ppj}
 #SBATCH {logfile}
 #SBATCH --workdir={workdir}
@@ -96,7 +85,6 @@ SLURM_HEADER_TEMPLATE = """
 #SBATCH {o_dependencies}
 #SBATCH {o_options}
 #SBATCH {o_env}
-#SBATCH {o_queue}
 {env}
 {header_commands}
 ARRAY_IND=$SLURM_ARRAY_TASK_ID
@@ -287,6 +275,15 @@ def which(program):
 
 
 if __name__ == "__main__":
+    if which('sbatch'):
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
+    elif os.getenv('SGE_ROOT'):
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
+    elif os.getenv('PBS_DEFAULT') or which("pbs-config"):
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
+    else:
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
+
     parser = argparse.ArgumentParser(
         description="""Submits a list of commands to a queueing system.
         The list of commands can be broken up into 'chunks' when submitted, so
@@ -365,7 +362,7 @@ if __name__ == "__main__":
         be run once per job. This option can be given multiple times""")
     group.add_argument(
         "--nodes", default=NODES, type=positive_int,
-        help="(PBS-only) Nodes to request per job")
+        help="(PBS and SLURM only) Nodes to request per job")
     group.add_argument(
         "--pe", default=PE,
         help="""(SGE-only) The parallel environment to use if more than one
@@ -436,7 +433,6 @@ if __name__ == "__main__":
     if system == 'slurm':
         if not which("sbatch"):
             sys.exit("sbatch command not found")
-
     if not which("parallel"):
         sys.exit("parallel command not found")
 
@@ -525,7 +521,7 @@ if __name__ == "__main__":
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'slurm':
-        ppj = (ppj > 1) and '-n {0}'.format(ppj) or ''
+        ppj = (ppj > 1) and '--cpus-per-task={0}'.format(ppj) or ''
         o_array = use_array and '--array=1-{0}'.format(num_jobs) or ''
         if (walltime and walltime.find(":") > 0):
             o_walltime = "--time={0}".format(walltime)
@@ -540,15 +536,15 @@ if __name__ == "__main__":
         except Exception as e:
             sys.exit("Error matching depend pattern {0}".format(str(e)))
         o_dependencies = '{0}'.format(
-            '--depend=afterok:' + ':'.join(matching_regular_jobids)
+            '--dependency=afterok:' + ':'.join(matching_regular_jobids)
             if (matching_regular_jobids) else '')
         o_options = '\n#SBATCH '.join(options)
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '--{0}'.format(mem_string) or ''
-        o_env = (env_mode == 'batch') and '-V' or ''
+        o_env = (env_mode == 'batch') and '--export=ALL' or '--export=NONE'
         logfile = logdir and '--output={0}/slurm-{1}-%J.out'.format(
             logdir, job_name) or ''
-        o_queue = queue and '--qos={0}'.format(queue) or ''
+        o_queue = queue and '--partition={0}'.format(queue) or ''
 
         header = SLURM_HEADER_TEMPLATE.format(**vars())
 
