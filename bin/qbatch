@@ -338,7 +338,6 @@ def qbatchDriver(**kwargs):
     # read in commands
     if command_file == '-':
         task_list = sys.stdin.readlines()
-        print(task_list)
         job_name = job_name or 'STDIN'
     else:
         task_list = open(command_file).readlines()
