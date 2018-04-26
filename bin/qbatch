@@ -294,6 +294,7 @@ def which(program):
 
 
 def qbatchDriver(**kwargs):
+    print(kwargs)
     _setupVars()
     command_file = kwargs.get('command_file')
     walltime = kwargs.get('walltime')
@@ -338,6 +339,7 @@ def qbatchDriver(**kwargs):
     # read in commands
     if command_file == '-':
         task_list = sys.stdin.readlines()
+        print(task_list)
         job_name = job_name or 'STDIN'
     else:
         task_list = open(command_file).readlines()
@@ -663,8 +665,8 @@ def qbatchParser(args=None):
         parser.print_usage()
         sys.exit(1)
 
-    parser.set_defaults(func=qbatchDriver)
     args = parser.parse_args() if args is None else parser.parse_args(args)
+    qbatchDriver(**vars(args))
 
 if __name__ == "__main__":
     qbatchParser()
