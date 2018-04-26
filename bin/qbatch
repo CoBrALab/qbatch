@@ -13,89 +13,91 @@ import sys
 import fnmatch
 import errno
 
-__version__ = pkg_resources.require("qbatch")[0].version
 
-# setup defaults (let environment override)
-PPJ = os.environ.get("QBATCH_PPJ", "1")
-CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
-CORES = os.environ.get("QBATCH_CORES", PPJ)
-NODES = os.environ.get("QBATCH_NODES", 1)
-PE = os.environ.get("QBATCH_PE", "smp")
-MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
-MEM = os.environ.get("QBATCH_MEM", "0")
-SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
-QUEUE = os.environ.get("QBATCH_QUEUE", None)
-SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
-OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
-    "QBATCH_OPTIONS") else []
+def _setupVars():
+    global __version__ = pkg_resources.require("qbatch")[0].version
 
-# environment vars to ignore when copying the environment to the job script
-IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
-                   'BASH_FUNC_*']
+    # setup defaults (let environment override)
+    global PPJ = os.environ.get("QBATCH_PPJ", "1")
+    global CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
+    global CORES = os.environ.get("QBATCH_CORES", PPJ)
+    global NODES = os.environ.get("QBATCH_NODES", 1)
+    global PE = os.environ.get("QBATCH_PE", "smp")
+    global MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
+    global MEM = os.environ.get("QBATCH_MEM", "0")
+    global SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
+    global QUEUE = os.environ.get("QBATCH_QUEUE", None)
+    global SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
+    global OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
+                     "QBATCH_OPTIONS") else []
 
-PBS_HEADER_TEMPLATE = """
-#!{shell}
-#PBS -l nodes={nodes}:{nodes_spec}ppn={ppj}
-#PBS -j oe
-#PBS -o {logdir}
-#PBS -d {workdir}
-#PBS -N {job_name}
-#PBS {o_memopts}
-#PBS {o_queue}
-#PBS {o_array}
-#PBS {o_walltime}
-#PBS {o_dependencies}
-#PBS {o_options}
-#PBS {o_env}
-{env}
-{header_commands}
-ARRAY_IND=$PBS_ARRAYID
-""".strip()
+    # environment vars to ignore when copying the environment to the job script
+    global IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
+                              'BASH_FUNC_*']
 
-SGE_HEADER_TEMPLATE = """
-#!{shell}
-#$ {ppj}
-#$ -j y
-#$ -o {logdir}
-#$ -wd {workdir}
-#$ -N {job_name}
-#$ {o_memopts}
-#$ {o_queue}
-#$ {o_array}
-#$ {o_walltime}
-#$ {o_dependencies}
-#$ {o_options}
-#$ {o_env}
-{env}
-{header_commands}
-ARRAY_IND=$SGE_TASK_ID
-""".strip()
+    global PBS_HEADER_TEMPLATE = """
+    #!{shell}
+    #PBS -l nodes={nodes}:{nodes_spec}ppn={ppj}
+    #PBS -j oe
+    #PBS -o {logdir}
+    #PBS -d {workdir}
+    #PBS -N {job_name}
+    #PBS {o_memopts}
+    #PBS {o_queue}
+    #PBS {o_array}
+    #PBS {o_walltime}
+    #PBS {o_dependencies}
+    #PBS {o_options}
+    #PBS {o_env}
+    {env}
+    {header_commands}
+    ARRAY_IND=$PBS_ARRAYID
+    """.strip()
 
-SLURM_HEADER_TEMPLATE = """
-#!{shell}
-#SBATCH --nodes={nodes}
-#SBATCH {ppj}
-#SBATCH {logfile}
-#SBATCH --workdir={workdir}
-#SBATCH --job-name={job_name}
-#SBATCH {o_memopts}
-#SBATCH {o_queue}
-#SBATCH {o_array}
-#SBATCH {o_walltime}
-#SBATCH {o_dependencies}
-#SBATCH {o_options}
-#SBATCH {o_env}
-{env}
-{header_commands}
-ARRAY_IND=$SLURM_ARRAY_TASK_ID
-""".strip()
+    global SGE_HEADER_TEMPLATE = """
+    #!{shell}
+    #$ {ppj}
+    #$ -j y
+    #$ -o {logdir}
+    #$ -wd {workdir}
+    #$ -N {job_name}
+    #$ {o_memopts}
+    #$ {o_queue}
+    #$ {o_array}
+    #$ {o_walltime}
+    #$ {o_dependencies}
+    #$ {o_options}
+    #$ {o_env}
+    {env}
+    {header_commands}
+    ARRAY_IND=$SGE_TASK_ID
+    """.strip()
 
-LOCAL_TEMPLATE = """
-#!{shell}
-{env}
-{header_commands}
-cd {workdir}
-""".strip()
+    global SLURM_HEADER_TEMPLATE = """
+    #!{shell}
+    #SBATCH --nodes={nodes}
+    #SBATCH {ppj}
+    #SBATCH {logfile}
+    #SBATCH --workdir={workdir}
+    #SBATCH --job-name={job_name}
+    #SBATCH {o_memopts}
+    #SBATCH {o_queue}
+    #SBATCH {o_array}
+    #SBATCH {o_walltime}
+    #SBATCH {o_dependencies}
+    #SBATCH {o_options}
+    #SBATCH {o_env}
+    {env}
+    {header_commands}
+    ARRAY_IND=$SLURM_ARRAY_TASK_ID
+    """.strip()
+
+    global LOCAL_TEMPLATE = """
+    #!{shell}
+    {env}
+    {header_commands}
+    cd {workdir}
+    """.strip()
 
 
 def run_command(command, logfile=None):
@@ -275,6 +277,7 @@ def which(program):
 
 
 def qbatchDriver(**kwargs):
+    _setupVars()
     command_file = kwargs.get(command_file)
     walltime = kwargs.get(walltime)
     chunk_size = kwargs.get(chunksize)
@@ -517,6 +520,7 @@ def qbatchDriver(**kwargs):
 
 
 def qbatchParser(args=None):
+    _setupVars()
     if which('sbatch'):
         SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
     elif os.getenv('SGE_ROOT'):
