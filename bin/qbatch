@@ -15,27 +15,41 @@ import errno
 
 
 def _setupVars():
-    global __version__ = pkg_resources.require("qbatch")[0].version
+    global __version__
+    __version__ = pkg_resources.require("qbatch")[0].version
 
     # setup defaults (let environment override)
-    global PPJ = os.environ.get("QBATCH_PPJ", "1")
-    global CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
-    global CORES = os.environ.get("QBATCH_CORES", PPJ)
-    global NODES = os.environ.get("QBATCH_NODES", 1)
-    global PE = os.environ.get("QBATCH_PE", "smp")
-    global MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
-    global MEM = os.environ.get("QBATCH_MEM", "0")
-    global SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
-    global QUEUE = os.environ.get("QBATCH_QUEUE", None)
-    global SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
-    global OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
-                     "QBATCH_OPTIONS") else []
+    global PPJ
+    PPJ = os.environ.get("QBATCH_PPJ", "1")
+    global CHUNKSIZE
+    CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
+    global CORES
+    CORES = os.environ.get("QBATCH_CORES", PPJ)
+    global NODES
+    NODES = os.environ.get("QBATCH_NODES", 1)
+    global PE
+    PE = os.environ.get("QBATCH_PE", "smp")
+    global MEMVARS
+    MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
+    global MEM
+    MEM = os.environ.get("QBATCH_MEM", "0")
+    global SCRIPT_FOLDER
+    SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
+    global QUEUE
+    QUEUE = os.environ.get("QBATCH_QUEUE", None)
+    global SHELL
+    SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
+    global OPTIONS
+    OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
+               "QBATCH_OPTIONS") else []
 
     # environment vars to ignore when copying the environment to the job script
-    global IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
-                              'BASH_FUNC_*']
+    global IGNORE_ENV_VARS
+    IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
+                       'BASH_FUNC_*']
 
-    global PBS_HEADER_TEMPLATE = """
+    global PBS_HEADER_TEMPLATE
+    PBS_HEADER_TEMPLATE = """
     #!{shell}
     #PBS -l nodes={nodes}:{nodes_spec}ppn={ppj}
     #PBS -j oe
@@ -54,7 +68,8 @@ def _setupVars():
     ARRAY_IND=$PBS_ARRAYID
     """.strip()
 
-    global SGE_HEADER_TEMPLATE = """
+    global SGE_HEADER_TEMPLATE
+    SGE_HEADER_TEMPLATE = """
     #!{shell}
     #$ {ppj}
     #$ -j y
@@ -73,7 +88,8 @@ def _setupVars():
     ARRAY_IND=$SGE_TASK_ID
     """.strip()
 
-    global SLURM_HEADER_TEMPLATE = """
+    global SLURM_HEADER_TEMPLATE
+    SLURM_HEADER_TEMPLATE = """
     #!{shell}
     #SBATCH --nodes={nodes}
     #SBATCH {ppj}
@@ -92,7 +108,8 @@ def _setupVars():
     ARRAY_IND=$SLURM_ARRAY_TASK_ID
     """.strip()
 
-    global LOCAL_TEMPLATE = """
+    global LOCAL_TEMPLATE
+    LOCAL_TEMPLATE = """
     #!{shell}
     {env}
     {header_commands}
@@ -278,31 +295,33 @@ def which(program):
 
 def qbatchDriver(**kwargs):
     _setupVars()
-    command_file = kwargs.get(command_file)
-    walltime = kwargs.get(walltime)
-    chunk_size = kwargs.get(chunksize)
-    ncores = kwargs.get(cores)
-    ppj = kwargs.get(ppj)
-    job_name = kwargs.get(jobname)
-    mem = kwargs.get(mem) != '0' and kwargs.get(mem) or None
-    queue = kwargs.get(queue)
-    verbose = kwargs.get(verbose)
-    dry_run = kwargs.get(n)
-    depend_pattern = kwargs.get(depend)
-    workdir = kwargs.get(workdir)
-    logdir = kwargs.get(logdir).format(workdir=workdir)
-    options = kwargs.get(options)
-    header_commands = kwargs.get(header) and '\n'.join(kwargs.get(header)) or ''
-    footer_commands = kwargs.get(footer) and '\n'.join(kwargs.get(footer)) or ''
-    nodes = kwargs.get(nodes)
-    pe = kwargs.get(pe)
-    memvars = kwargs.get(memvars).split(',')
-    nodes_spec = (kwargs.get(pbs_nodes_spec) and
-                  ':'.join(kwargs.get(pbs_nodes_spec)) + ':') or ''
-    use_array = not kwargs.get(i)
-    system = kwargs.get(b)
-    env_mode = kwargs.get(env)
-    shell = kwargs.get(shell)
+    command_file = kwargs.get('command_file')
+    walltime = kwargs.get('walltime')
+    chunk_size = kwargs.get('chunksize')
+    ncores = kwargs.get('cores')
+    ppj = kwargs.get('ppj')
+    job_name = kwargs.get('jobname')
+    mem = kwargs.get('mem') != '0' and kwargs.get('mem') or None
+    queue = kwargs.get('queue')
+    verbose = kwargs.get('verbose')
+    dry_run = kwargs.get('n')
+    depend_pattern = kwargs.get('depend')
+    workdir = kwargs.get('workdir')
+    logdir = kwargs.get('logdir').format(workdir=workdir)
+    options = kwargs.get('options')
+    header_commands = (kwargs.get('header') and
+                       '\n'.join(kwargs.get('header')) or '')
+    footer_commands = (kwargs.get('footer') and
+                       '\n'.join(kwargs.get('footer')) or '')
+    nodes = kwargs.get('nodes')
+    pe = kwargs.get('pe')
+    memvars = kwargs.get('memvars').split(',')
+    nodes_spec = (kwargs.get('pbs_nodes_spec') and
+                  ':'.join(kwargs.get('pbs_nodes_spec')) + ':') or ''
+    use_array = not kwargs.get('i')
+    system = kwargs.get('b')
+    env_mode = kwargs.get('env')
+    shell = kwargs.get('shell')
 
     # Preflight check
     if system == 'sge' or system == 'pbs':
@@ -441,7 +460,7 @@ def qbatchDriver(**kwargs):
             'CORES={0}'.format(ncores),
             'export THREADS_PER_COMMAND={0}'.format(
                 compute_threads(
-                    kwargs.get(ppj),
+                    kwargs.get('ppj'),
                     ncores)),
             'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
             '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -j${CORES} --tag'
@@ -472,7 +491,7 @@ def qbatchDriver(**kwargs):
                     'found. Exiting."; exit 1; }',
                     'CORES={0}'.format(ncores),
                     'export THREADS_PER_COMMAND={0}'.format(
-                        compute_threads(kwargs.get(ppj), ncores)),
+                        compute_threads(kwargs.get('ppj'), ncores)),
                     "parallel -j${CORES} --tag --line-buffer"
                     " --compress << EOF",
                     ''.join(task_list[chunk * chunk_size:chunk *
@@ -644,9 +663,8 @@ def qbatchParser(args=None):
         parser.print_usage()
         sys.exit(1)
 
-    parser_run.set_defaults(func=qbatchDriver)
+    parser.set_defaults(func=qbatchDriver)
     args = parser.parse_args() if args is None else parser.parse_args(args)
 
-
 if __name__ == "__main__":
-    qbatchDriver()
+    qbatchParser()
