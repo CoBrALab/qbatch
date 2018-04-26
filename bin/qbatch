@@ -274,9 +274,6 @@ def which(program):
     return None
 
 
-if __name__ == "__main__":
-    qbatchDriver()
-
 def qbatchDriver(args=None):
     if which('sbatch'):
         SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
@@ -642,3 +639,7 @@ def qbatchDriver(args=None):
             if return_code:
                 sys.exit("local run call " +
                          "returned error code {0}".format(return_code))
+
+if __name__ == "__main__":
+    qbatchDriver()
+
