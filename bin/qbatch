@@ -275,6 +275,9 @@ def which(program):
 
 
 if __name__ == "__main__":
+    qbatchDriver()
+
+def qbatchDriver(args=None):
     if which('sbatch'):
         SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
     elif os.getenv('SGE_ROOT'):
@@ -398,7 +401,7 @@ if __name__ == "__main__":
         parser.print_usage()
         sys.exit(1)
 
-    args = parser.parse_args()
+    args = parser.parse_args() if args is None else parser.parse_args(args)
 
     command_file = args.command_file
     walltime = args.walltime
