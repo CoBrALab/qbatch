@@ -28,4 +28,4 @@ install:
 
 script:
     - nosetests -v
-    - pep8 bin/qbatch test
+    - pep8 bin/qbatch --max-line-length=80
