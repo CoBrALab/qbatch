@@ -38,7 +38,15 @@ def test_qbatch_help():
 
 
 def test_python_import():
-    p = command_pipe('python -c "from qbatch import qbatchParser')
+    p = command_pipe('python -c "from qbatch import qbatchParser"')
+    out, _ = p.communicate(cmds.encode())
+
+    assert p.returncode == 0
+
+
+def test_python_help_launch():
+    p = command_pipe("""python -c "from qbatch import qbatchParser; """ +
+                     """qbatchParser(['-h'])" """)
     out, _ = p.communicate(cmds.encode())
 
     assert p.returncode == 0
