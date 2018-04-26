@@ -294,7 +294,6 @@ def which(program):
 
 
 def qbatchDriver(**kwargs):
-    print(kwargs)
     _setupVars()
     command_file = kwargs.get('command_file')
     walltime = kwargs.get('walltime')
