@@ -659,11 +659,7 @@ def qbatchParser(args=None):
         help="""Shell to use for spawning jobs
         and launching single commands""")
 
-    if len(sys.argv) == 1:
-        parser.print_usage()
-        sys.exit(1)
-
-    args = parser.parse_args() if args is None else parser.parse_args(args)
+    args = parser.parse_args(args)
     qbatchDriver(**vars(args))
 
 if __name__ == "__main__":

@@ -23,9 +23,9 @@ install:
     - make
     - sudo make install
     - cd ..    
-    - pip install .
+    - pip install -e .
     - pip install pep8
 
 script:
     - nosetests -v
-    - pep8 bin/qbatch --max-line-length=80
+    - pep8 qbatch/qbatch.py --max-line-length=80
