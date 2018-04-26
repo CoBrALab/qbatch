@@ -445,9 +445,10 @@ if __name__ == "__main__":
         task_list = sys.stdin.readlines()
         job_name = job_name or 'STDIN'
     else:
+        task_list = []
         for file in command_file:
             if os.path.isfile(file):
-                task_list = open(file).readlines()
+                task_list = task_list + open(file).readlines()
                 job_name = job_name or os.path.basename(file)
             else:
                 sys.exit(
