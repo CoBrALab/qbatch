@@ -336,12 +336,15 @@ def qbatchDriver(**kwargs):
     mkdirp(logdir)
 
     # read in commands
-    if command_file == '-':
-        task_list = sys.stdin.readlines()
-        job_name = job_name or 'STDIN'
+    if not kwargs.get('task_list'):
+        if command_file == '-':
+            task_list = sys.stdin.readlines()
+            job_name = job_name or 'STDIN'
+        else:
+            task_list = open(command_file).readlines()
+            job_name = job_name or os.path.basename(command_file)
     else:
-        task_list = open(command_file).readlines()
-        job_name = job_name or os.path.basename(command_file)
+        job_name = job_name or 'qbatchDriver'
 
     # compute the number of jobs needed. This will be the number of elements in
     # the array job
