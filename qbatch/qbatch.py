@@ -13,89 +13,108 @@ import sys
 import fnmatch
 import errno
 
-__version__ = pkg_resources.require("qbatch")[0].version
 
-# setup defaults (let environment override)
-PPJ = os.environ.get("QBATCH_PPJ", "1")
-CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
-CORES = os.environ.get("QBATCH_CORES", PPJ)
-NODES = os.environ.get("QBATCH_NODES", 1)
-PE = os.environ.get("QBATCH_PE", "smp")
-MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
-MEM = os.environ.get("QBATCH_MEM", "0")
-SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
-QUEUE = os.environ.get("QBATCH_QUEUE", None)
-SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
-OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
-    "QBATCH_OPTIONS") else []
+def _setupVars():
+    global __version__
+    __version__ = pkg_resources.require("qbatch")[0].version
 
-# environment vars to ignore when copying the environment to the job script
-IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
-                   'BASH_FUNC_*']
+    # setup defaults (let environment override)
+    global PPJ
+    PPJ = os.environ.get("QBATCH_PPJ", "1")
+    global CHUNKSIZE
+    CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
+    global CORES
+    CORES = os.environ.get("QBATCH_CORES", PPJ)
+    global NODES
+    NODES = os.environ.get("QBATCH_NODES", 1)
+    global PE
+    PE = os.environ.get("QBATCH_PE", "smp")
+    global MEMVARS
+    MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
+    global MEM
+    MEM = os.environ.get("QBATCH_MEM", "0")
+    global SCRIPT_FOLDER
+    SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
+    global QUEUE
+    QUEUE = os.environ.get("QBATCH_QUEUE", None)
+    global SHELL
+    SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
+    global OPTIONS
+    OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
+               "QBATCH_OPTIONS") else []
 
-PBS_HEADER_TEMPLATE = """
-#!{shell}
-#PBS -l nodes={nodes}:{nodes_spec}ppn={ppj}
-#PBS -j oe
-#PBS -o {logdir}
-#PBS -d {workdir}
-#PBS -N {job_name}
-#PBS {o_memopts}
-#PBS {o_queue}
-#PBS {o_array}
-#PBS {o_walltime}
-#PBS {o_dependencies}
-#PBS {o_options}
-#PBS {o_env}
-{env}
-{header_commands}
-ARRAY_IND=$PBS_ARRAYID
-""".strip()
+    # environment vars to ignore when copying the environment to the job script
+    global IGNORE_ENV_VARS
+    IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
+                       'BASH_FUNC_*']
 
-SGE_HEADER_TEMPLATE = """
-#!{shell}
-#$ {ppj}
-#$ -j y
-#$ -o {logdir}
-#$ -wd {workdir}
-#$ -N {job_name}
-#$ {o_memopts}
-#$ {o_queue}
-#$ {o_array}
-#$ {o_walltime}
-#$ {o_dependencies}
-#$ {o_options}
-#$ {o_env}
-{env}
-{header_commands}
-ARRAY_IND=$SGE_TASK_ID
-""".strip()
+    global PBS_HEADER_TEMPLATE
+    PBS_HEADER_TEMPLATE = """
+    #!{shell}
+    #PBS -l nodes={nodes}:{nodes_spec}ppn={ppj}
+    #PBS -j oe
+    #PBS -o {logdir}
+    #PBS -d {workdir}
+    #PBS -N {job_name}
+    #PBS {o_memopts}
+    #PBS {o_queue}
+    #PBS {o_array}
+    #PBS {o_walltime}
+    #PBS {o_dependencies}
+    #PBS {o_options}
+    #PBS {o_env}
+    {env}
+    {header_commands}
+    ARRAY_IND=$PBS_ARRAYID
+    """.strip()
 
-SLURM_HEADER_TEMPLATE = """
-#!{shell}
-#SBATCH --nodes={nodes}
-#SBATCH {ppj}
-#SBATCH {logfile}
-#SBATCH --workdir={workdir}
-#SBATCH --job-name={job_name}
-#SBATCH {o_memopts}
-#SBATCH {o_queue}
-#SBATCH {o_array}
-#SBATCH {o_walltime}
-#SBATCH {o_dependencies}
-#SBATCH {o_options}
-#SBATCH {o_env}
-{env}
-{header_commands}
-ARRAY_IND=$SLURM_ARRAY_TASK_ID
-""".strip()
+    global SGE_HEADER_TEMPLATE
+    SGE_HEADER_TEMPLATE = """
+    #!{shell}
+    #$ {ppj}
+    #$ -j y
+    #$ -o {logdir}
+    #$ -wd {workdir}
+    #$ -N {job_name}
+    #$ {o_memopts}
+    #$ {o_queue}
+    #$ {o_array}
+    #$ {o_walltime}
+    #$ {o_dependencies}
+    #$ {o_options}
+    #$ {o_env}
+    {env}
+    {header_commands}
+    ARRAY_IND=$SGE_TASK_ID
+    """.strip()
 
-LOCAL_TEMPLATE = """
-#!{shell}
-{env}
-{header_commands}
-cd {workdir}
-""".strip()
+    global SLURM_HEADER_TEMPLATE
+    SLURM_HEADER_TEMPLATE = """
+    #!{shell}
+    #SBATCH --nodes={nodes}
+    #SBATCH {ppj}
+    #SBATCH {logfile}
+    #SBATCH --workdir={workdir}
+    #SBATCH --job-name={job_name}
+    #SBATCH {o_memopts}
+    #SBATCH {o_queue}
+    #SBATCH {o_array}
+    #SBATCH {o_walltime}
+    #SBATCH {o_dependencies}
+    #SBATCH {o_options}
+    #SBATCH {o_env}
+    {env}
+    {header_commands}
+    ARRAY_IND=$SLURM_ARRAY_TASK_ID
+    """.strip()
+
+    global LOCAL_TEMPLATE
+    LOCAL_TEMPLATE = """
+    #!{shell}
+    {env}
+    {header_commands}
+    cd {workdir}
+    """.strip()
 
 
 def run_command(command, logfile=None):
@@ -159,7 +178,7 @@ def positive_int(string):
 
 def int_or_percent(string):
     """Checks argument is an integer or integer percentage"""
-    if not re.match("^([-+]?\d+|^\d+%)$", string):
+    if not re.match("^([-+]?\d+|^\d+%)$", string):  # noqa
         msg = "Must be an integer or positive integer percentage"
         raise argparse.ArgumentTypeError(msg)
     return string
@@ -274,157 +293,35 @@ def which(program):
     return None
 
 
-if __name__ == "__main__":
-    if which('sbatch'):
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
-    elif os.getenv('SGE_ROOT'):
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
-    elif os.getenv('PBS_DEFAULT') or which("pbs-config"):
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
-    else:
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
-
-    parser = argparse.ArgumentParser(
-        description="""Submits a list of commands to a queueing system.
-        The list of commands can be broken up into 'chunks' when submitted, so
-        that the commands in each chunk run in parallel (using GNU parallel).
-        The job script(s) generated by %(prog)s are stored in the folder
-        {0}""".format(SCRIPT_FOLDER),
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument(
-        "command_file", type=valid_file,
-        help="""An input file containing a list of shell commands to be
-        submitted. Use - to read the command list from STDIN""")
-    parser.add_argument(
-        "-w", "--walltime",
-        help="""Maximum walltime for an array job element or individual job""")
-    parser.add_argument(
-        "-c", "--chunksize", default=CHUNKSIZE, type=positive_int,
-        help="""Number of commands from the command list that are wrapped into
-        each job""")
-    parser.add_argument(
-        "-j", "--cores", default=CORES, type=int_or_percent,
-        help="""Number of commands each job runs in parallel. If the chunk size
-        (-c) is smaller than -j then only chunk size commands will run in
-        parallel. This option can also be expressed as a percentage (e.g.
-        100%%) of the total available cores""")
-    parser.add_argument(
-        "--ppj", default=PPJ, type=positive_int,
-        help="""Requested number of processors per job (aka ppn on PBS,
-        slots on SGE, cpus per task on SLURM). Cores can be over subscribed
-        if -j is larger than --ppj
-        (useful to make use of hyper-threading on some systems)""")
-    parser.add_argument(
-        "-N", "--jobname", action="store",
-        help="""Set job name (defaults to name of command file, or STDIN)""")
-    parser.add_argument(
-        "--mem", default=MEM,
-        help="""Memory required for each job (e.g. --mem 1G).  This value will
-        be set on each variable specified in --memvars. To not set any memory
-        requirement, set this to 0""")
-    parser.add_argument(
-        "-q", "--queue", default=QUEUE,
-        help="""Name of queue to submit jobs to (defaults to no queue)""")
-
-    parser.add_argument(
-        "-n", action="store_true",
-        help="Dry run; Create jobfiles but do not submit or run any commands")
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Verbose output")
-    parser.add_argument('--version', action='version', version=__version__)
-
-    group = parser.add_argument_group('advanced options')
-    group.add_argument(
-        "--depend", action="append",
-        help="""Wait for successful completion of job(s) with name matching
-        given glob pattern or job id matching given job id(s) before
-        starting""")
-    group.add_argument(
-        "-d", "--workdir", default=os.getcwd(),
-        help="Job working directory")
-    group.add_argument(
-        "--logdir", action="store", default="{workdir}/logs",
-        help="""Directory to save store log files""")
-    group.add_argument(
-        "-o", "--options", action="append", default=OPTIONS,
-        help="""Custom options passed directly to the queuing system (e.g
-        --options "-l vf=8G". This option can be given multiple times""")
-    group.add_argument(
-        "--header", action="append",
-        help="""A line to insert verbatim at the start of the script, and will
-        be run once per job. This option can be given multiple times""")
-    group.add_argument(
-        "--footer", action="append",
-        help="""A line to insert verbatim at the end of the script, and will
-        be run once per job. This option can be given multiple times""")
-    group.add_argument(
-        "--nodes", default=NODES, type=positive_int,
-        help="(PBS and SLURM only) Nodes to request per job")
-    group.add_argument(
-        "--pe", default=PE,
-        help="""(SGE-only) The parallel environment to use if more than one
-        processor per job is requested""")
-    group.add_argument(
-        "--memvars", default=MEMVARS,
-        help="""A comma-separated list of variables to set with the memory
-        limit given by the --mem option (e.g. --memvars=h_vmem,vf)""")
-    group.add_argument(
-        "--pbs-nodes-spec", action="append",
-        help="(PBS-only) String to be inserted into nodes= line of job")
-    group.add_argument(
-        "-i", action="store_true",
-        help="Submit individual jobs instead of an array job")
-    group.add_argument(
-        "-b", default=SYSTEM, choices=['pbs', 'sge', 'slurm', 'local'],
-        help="""The type of queueing system to use. 'pbs' and 'sge' both make
-        calls to qsub to submit jobs. 'slurm' calls sbatch.
-        'local' runs the entire command list (without chunking) locally.""")
-    group.add_argument(
-        "--env", choices=['copied', 'batch', 'none'], default='copied',
-        help="""Determines how your environment is propagated when your
-              job runs. "copied" records your environment settings in
-              the job submission script, "batch" uses the cluster's
-              mechanism for propagating your environment, and "none"
-              does not propagate any environment variables.""")
-    group.add_argument(
-        "--shell", default=SHELL,
-        help="""Shell to use for spawning jobs
-        and launching single commands""")
-
-    if len(sys.argv) == 1:
-        parser.print_usage()
-        sys.exit(1)
-
-    args = parser.parse_args()
-
-    command_file = args.command_file
-    walltime = args.walltime
-    chunk_size = args.chunksize
-    ncores = args.cores
-    ppj = args.ppj
-    job_name = args.jobname
-    mem = args.mem != '0' and args.mem or None
-    queue = args.queue
-    verbose = args.verbose
-    dry_run = args.n
-    depend_pattern = args.depend
-    workdir = args.workdir
-    logdir = args.logdir.format(workdir=workdir)
-    options = args.options
-    header_commands = args.header and '\n'.join(args.header) or ''
-    footer_commands = args.footer and '\n'.join(args.footer) or ''
-    nodes = args.nodes
-    pe = args.pe
-    memvars = args.memvars.split(',')
-    nodes_spec = (args.pbs_nodes_spec and ':'.join(args.pbs_nodes_spec) +
-                  ':') or ''
-    use_array = not args.i
-    system = args.b
-    env_mode = args.env
-    shell = args.shell
+def qbatchDriver(**kwargs):
+    _setupVars()
+    command_file = kwargs.get('command_file')
+    walltime = kwargs.get('walltime')
+    chunk_size = kwargs.get('chunksize')
+    ncores = kwargs.get('cores')
+    ppj = kwargs.get('ppj')
+    job_name = kwargs.get('jobname')
+    mem = kwargs.get('mem') != '0' and kwargs.get('mem') or None
+    queue = kwargs.get('queue')
+    verbose = kwargs.get('verbose')
+    dry_run = kwargs.get('n')
+    depend_pattern = kwargs.get('depend')
+    workdir = kwargs.get('workdir')
+    logdir = kwargs.get('logdir').format(workdir=workdir)
+    options = kwargs.get('options')
+    header_commands = (kwargs.get('header') and
+                       '\n'.join(kwargs.get('header')) or '')
+    footer_commands = (kwargs.get('footer') and
+                       '\n'.join(kwargs.get('footer')) or '')
+    nodes = kwargs.get('nodes')
+    pe = kwargs.get('pe')
+    memvars = kwargs.get('memvars').split(',')
+    nodes_spec = (kwargs.get('pbs_nodes_spec') and
+                  ':'.join(kwargs.get('pbs_nodes_spec')) + ':') or ''
+    use_array = not kwargs.get('i')
+    system = kwargs.get('b')
+    env_mode = kwargs.get('env')
+    shell = kwargs.get('shell')
 
     # Preflight check
     if system == 'sge' or system == 'pbs':
@@ -563,7 +460,7 @@ if __name__ == "__main__":
             'CORES={0}'.format(ncores),
             'export THREADS_PER_COMMAND={0}'.format(
                 compute_threads(
-                    args.ppj,
+                    kwargs.get('ppj'),
                     ncores)),
             'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
             '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -j${CORES} --tag'
@@ -594,7 +491,7 @@ if __name__ == "__main__":
                     'found. Exiting."; exit 1; }',
                     'CORES={0}'.format(ncores),
                     'export THREADS_PER_COMMAND={0}'.format(
-                        compute_threads(args.ppj, ncores)),
+                        compute_threads(kwargs.get('ppj'), ncores)),
                     "parallel -j${CORES} --tag --line-buffer"
                     " --compress << EOF",
                     ''.join(task_list[chunk * chunk_size:chunk *
@@ -639,3 +536,131 @@ if __name__ == "__main__":
             if return_code:
                 sys.exit("local run call " +
                          "returned error code {0}".format(return_code))
+
+
+def qbatchParser(args=None):
+    _setupVars()
+    if which('sbatch'):
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
+    elif os.getenv('SGE_ROOT'):
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
+    elif os.getenv('PBS_DEFAULT') or which("pbs-config"):
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
+    else:
+        SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
+
+    parser = argparse.ArgumentParser(
+        description="""Submits a list of commands to a queueing system.
+        The list of commands can be broken up into 'chunks' when submitted, so
+        that the commands in each chunk run in parallel (using GNU parallel).
+        The job script(s) generated by %(prog)s are stored in the folder
+        {0}""".format(SCRIPT_FOLDER),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        "command_file", type=valid_file,
+        help="""An input file containing a list of shell commands to be
+        submitted. Use - to read the command list from STDIN""")
+    parser.add_argument(
+        "-w", "--walltime",
+        help="""Maximum walltime for an array job element or individual job""")
+    parser.add_argument(
+        "-c", "--chunksize", default=CHUNKSIZE, type=positive_int,
+        help="""Number of commands from the command list that are wrapped into
+        each job""")
+    parser.add_argument(
+        "-j", "--cores", default=CORES, type=int_or_percent,
+        help="""Number of commands each job runs in parallel. If the chunk size
+        (-c) is smaller than -j then only chunk size commands will run in
+        parallel. This option can also be expressed as a percentage (e.g.
+        100%%) of the total available cores""")
+    parser.add_argument(
+        "--ppj", default=PPJ, type=positive_int,
+        help="""Requested number of processors per job (aka ppn on PBS,
+        slots on SGE, cpus per task on SLURM). Cores can be over subscribed
+        if -j is larger than --ppj
+        (useful to make use of hyper-threading on some systems)""")
+    parser.add_argument(
+        "-N", "--jobname", action="store",
+        help="""Set job name (defaults to name of command file, or STDIN)""")
+    parser.add_argument(
+        "--mem", default=MEM,
+        help="""Memory required for each job (e.g. --mem 1G).  This value will
+        be set on each variable specified in --memvars. To not set any memory
+        requirement, set this to 0""")
+    parser.add_argument(
+        "-q", "--queue", default=QUEUE,
+        help="""Name of queue to submit jobs to (defaults to no queue)""")
+
+    parser.add_argument(
+        "-n", action="store_true",
+        help="Dry run; Create jobfiles but do not submit or run any commands")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Verbose output")
+    parser.add_argument('--version', action='version', version=__version__)
+
+    group = parser.add_argument_group('advanced options')
+    group.add_argument(
+        "--depend", action="append",
+        help="""Wait for successful completion of job(s) with name matching
+        given glob pattern or job id matching given job id(s) before
+        starting""")
+    group.add_argument(
+        "-d", "--workdir", default=os.getcwd(),
+        help="Job working directory")
+    group.add_argument(
+        "--logdir", action="store", default="{workdir}/logs",
+        help="""Directory to save store log files""")
+    group.add_argument(
+        "-o", "--options", action="append", default=OPTIONS,
+        help="""Custom options passed directly to the queuing system (e.g
+        --options "-l vf=8G". This option can be given multiple times""")
+    group.add_argument(
+        "--header", action="append",
+        help="""A line to insert verbatim at the start of the script, and will
+        be run once per job. This option can be given multiple times""")
+    group.add_argument(
+        "--footer", action="append",
+        help="""A line to insert verbatim at the end of the script, and will
+        be run once per job. This option can be given multiple times""")
+    group.add_argument(
+        "--nodes", default=NODES, type=positive_int,
+        help="(PBS and SLURM only) Nodes to request per job")
+    group.add_argument(
+        "--pe", default=PE,
+        help="""(SGE-only) The parallel environment to use if more than one
+        processor per job is requested""")
+    group.add_argument(
+        "--memvars", default=MEMVARS,
+        help="""A comma-separated list of variables to set with the memory
+        limit given by the --mem option (e.g. --memvars=h_vmem,vf)""")
+    group.add_argument(
+        "--pbs-nodes-spec", action="append",
+        help="(PBS-only) String to be inserted into nodes= line of job")
+    group.add_argument(
+        "-i", action="store_true",
+        help="Submit individual jobs instead of an array job")
+    group.add_argument(
+        "-b", default=SYSTEM, choices=['pbs', 'sge', 'slurm', 'local'],
+        help="""The type of queueing system to use. 'pbs' and 'sge' both make
+        calls to qsub to submit jobs. 'slurm' calls sbatch.
+        'local' runs the entire command list (without chunking) locally.""")
+    group.add_argument(
+        "--env", choices=['copied', 'batch', 'none'], default='copied',
+        help="""Determines how your environment is propagated when your
+              job runs. "copied" records your environment settings in
+              the job submission script, "batch" uses the cluster's
+              mechanism for propagating your environment, and "none"
+              does not propagate any environment variables.""")
+    group.add_argument(
+        "--shell", default=SHELL,
+        help="""Shell to use for spawning jobs
+        and launching single commands""")
+
+    args = parser.parse_args(args)
+    qbatchDriver(**vars(args))
+
+if __name__ == "__main__":
+    qbatchParser()
