@@ -1,3 +1,6 @@
 *.pyc
 .scripts/
 logs/
+.qbatch/
+.eggs/
+qbatch.egg-info/
