@@ -14,7 +14,12 @@ import errno
 
 
 def _setupVars():
-
+    try:
+        __varsSet
+    except NameError:
+        pass
+    else:
+        return
     # setup defaults (let environment override)
     global SYSTEM
     SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
@@ -127,6 +132,9 @@ def _setupVars():
     {header_commands}
     cd {workdir}
     """.strip()
+
+    global __varsSet
+    __varsSet = True
 
 
 def run_command(command, logfile=None):
