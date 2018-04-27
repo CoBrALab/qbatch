@@ -62,7 +62,7 @@ usage: qbatch [-h] [-w WALLTIME] [-c CHUNKSIZE] [-j CORES] [--ppj PPJ]
               [--pbs-nodes-spec PBS_NODES_SPEC] [-i]
               [-b {pbs,sge,slurm,local}] [--env {copied,batch,none}]
               [--shell SHELL]
-              command_file
+              ...
 
 Submits a list of commands to a queueing system. The list of commands can be
 broken up into 'chunks' when submitted, so that the commands in each chunk run
@@ -71,8 +71,8 @@ stored in the folder .qbatch/
 
 positional arguments:
   command_file          An input file containing a list of shell commands to
-                        be submitted. Use - to read the command list from
-                        STDIN
+                        be submitted, - to read the command list from stdin or
+                        -- followed by a single command
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -113,8 +113,8 @@ advanced options:
                         matching given glob pattern or job id matching given
                         job id(s) before starting (default: None)
   -d WORKDIR, --workdir WORKDIR
-                        Job working directory (default:
-                        /storage/working/qbatch)
+                        Job working directory (default: /storage/working
+                        /qbatch-gdevenyi)
   --logdir LOGDIR       Directory to save store log files (default:
                         {workdir}/logs)
   -o OPTIONS, --options OPTIONS
@@ -161,6 +161,9 @@ advanced options:
 # Generates a job script in ./.qbatch/ and job logs appear in ./logs/\
 # All defaults are inherited from QBATCH_* environment variables
 $ qbatch commands.txt
+
+# Submit a single command to the cluster
+$ qbatch -- echo hello
 
 # Set the walltime for each job
 $ qbatch -w 3:00:00 commands.txt

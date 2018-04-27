@@ -168,14 +168,6 @@ def mkdirp(*p):
     return path
 
 
-def valid_file(string):
-    """Checks argument is a file that exists or is -"""
-    if string != '-' and not os.path.isfile(string):
-        raise argparse.ArgumentTypeError(
-            "The file {0} does not exist".format(string))
-    return string
-
-
 def positive_int(string):
     """Checks agument is a positive integer"""
     msg = "Must be a positive integer"
@@ -346,12 +338,24 @@ def qbatchDriver(**kwargs):
 
     # read in commands
     if not kwargs.get('task_list'):
-        if command_file == '-':
+        if command_file[0] == '--':
+            if (len(command_file) > 1):
+                task_list = " ".join(command_file[1:])
+                job_name = job_name or command_file[1]
+            else:
+                sys.exit("qbatch: error: no command provided as last argument")
+        elif command_file[0] == '-':
             task_list = sys.stdin.readlines()
             job_name = job_name or 'STDIN'
         else:
-            task_list = open(command_file).readlines()
-            job_name = job_name or os.path.basename(command_file)
+            task_list = []
+            for file in command_file:
+                if os.path.isfile(file):
+                    task_list = task_list + open(file).readlines()
+                    job_name = job_name or os.path.basename(file)
+                else:
+                    sys.exit("qbatch: error: command_file {0}".format(file) +
+                             " does not exist or cannot be read")
     else:
         job_name = job_name or 'qbatchDriver'
 
@@ -562,9 +566,10 @@ def qbatchParser(args=None):
         {0}""".format(SCRIPT_FOLDER),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        "command_file", type=valid_file,
+        "command_file", nargs=argparse.REMAINDER,
         help="""An input file containing a list of shell commands to be
-        submitted. Use - to read the command list from STDIN""")
+        submitted, - to read the command list from stdin or -- followed
+        by a single command""")
     parser.add_argument(
         "-w", "--walltime",
         help="""Maximum walltime for an array job element or individual job""")
