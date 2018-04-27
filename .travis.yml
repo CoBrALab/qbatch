@@ -30,4 +30,4 @@ install:
 
 script:
     - nosetests -v
-    - pycodestyle qbatch/qbatch.py
+    - pycodestyle --ignore=W605,E121,E123,E126,E226,E24,E704,W503,W504 qbatch/qbatch.py
