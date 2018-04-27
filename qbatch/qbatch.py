@@ -16,9 +16,23 @@ import errno
 
 def _setupVars():
     global __version__
-    __version__ = pkg_resources.require("qbatch")[0].version
 
     # setup defaults (let environment override)
+    global SYSTEM
+    SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
+    if SYSTEM == "slurm":
+        which('sbatch') or sys.exit("qbatch: error: QBATCH_SYSTEM set to slurm"
+                                    " but sbatch not found")
+        which('squeue') or sys.exit("qbatch: error: QBATCH_SYSTEM set to slurm"
+                                    " but squeue not found")
+    elif (SYSTEM == "pbs") or (SYSTEM == "sge"):
+        which('qsub') or sys.exit("qbatch: error: QBATCH_SYSTEM set to pbs/sge"
+                                  " but qsub not found")
+        which('qstat') or sys.exit("qbatch: error: QBATCH_SYSTEM set to pbs/sge"
+                                   " but qstat not found")
+    else:
+        which('parallel') or sys.exit("qbatch: error: QBATCH_SYSTEM set to"
+                                      " local but parallel not found")
     global PPJ
     PPJ = os.environ.get("QBATCH_PPJ", "1")
     global CHUNKSIZE
@@ -41,7 +55,7 @@ def _setupVars():
     SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
     global OPTIONS
     OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
-               "QBATCH_OPTIONS") else []
+        "QBATCH_OPTIONS") else []
 
     # environment vars to ignore when copying the environment to the job script
     global IGNORE_ENV_VARS
@@ -323,16 +337,6 @@ def qbatchDriver(**kwargs):
     env_mode = kwargs.get('env')
     shell = kwargs.get('shell')
 
-    # Preflight check
-    if system == 'sge' or system == 'pbs':
-        if not which("qsub"):
-            sys.exit("qsub command not found")
-    if system == 'slurm':
-        if not which("sbatch"):
-            sys.exit("sbatch command not found")
-    if not which("parallel"):
-        sys.exit("parallel command not found")
-
     mkdirp(logdir)
 
     # read in commands
@@ -457,8 +461,8 @@ def qbatchDriver(**kwargs):
     if use_array:
         script_lines = [
             header,
-            'which parallel > /dev/null || { echo "GNU parallel not '
-            'found. Exiting."; exit 1; }',
+            'which parallel > /dev/null 2>&1 || { echo "GNU parallel not '
+            'found in job environment. Exiting."; exit 1; }',
             'CHUNK_SIZE={0}'.format(chunk_size),
             'CORES={0}'.format(ncores),
             'export THREADS_PER_COMMAND={0}'.format(
@@ -490,8 +494,8 @@ def qbatchDriver(**kwargs):
             else:
                 script_lines = [
                     header,
-                    'which parallel > /dev/null || { echo "GNU parallel not '
-                    'found. Exiting."; exit 1; }',
+                    'which parallel > /dev/null 2>&1 || { echo "GNU parallel not '
+                    'found in job environment. Exiting."; exit 1; }',
                     'CORES={0}'.format(ncores),
                     'export THREADS_PER_COMMAND={0}'.format(
                         compute_threads(kwargs.get('ppj'), ncores)),
@@ -543,14 +547,7 @@ def qbatchDriver(**kwargs):
 
 def qbatchParser(args=None):
     _setupVars()
-    if which('sbatch'):
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "slurm")
-    elif os.getenv('SGE_ROOT'):
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "sge")
-    elif os.getenv('PBS_DEFAULT') or which("pbs-config"):
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "pbs")
-    else:
-        SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
+    __version__ = pkg_resources.require("qbatch")[0].version
 
     parser = argparse.ArgumentParser(
         description="""Submits a list of commands to a queueing system.
@@ -664,6 +661,7 @@ def qbatchParser(args=None):
 
     args = parser.parse_args(args)
     qbatchDriver(**vars(args))
+
 
 if __name__ == "__main__":
     qbatchParser()
