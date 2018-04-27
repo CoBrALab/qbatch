@@ -57,7 +57,7 @@ def _setupVars():
     # environment vars to ignore when copying the environment to the job script
     global IGNORE_ENV_VARS
     IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
-                       'BASH_FUNC_*']
+                       'BASH_FUNC_*', "TMP", "TMPDIR"]
 
     global PBS_HEADER_TEMPLATE
     PBS_HEADER_TEMPLATE = """
