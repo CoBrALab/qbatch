@@ -34,7 +34,7 @@ $ export QBATCH_MEM="0"                  # requested memory per job
 $ export QBATCH_MEMVARS="mem"            # memory request variable to set
 $ export QBATCH_SYSTEM="pbs"             # queuing system to use ("pbs", "sge", or "slurm")
 $ export QBATCH_NODES=1                  # (PBS-only) nodes to request per job
-$ export QBATCH_PE="smp"                 # (SGE-only) parallel environment name
+$ export QBATCH_SGE_PE="smp"                 # (SGE-only) parallel environment name
 $ export QBATCH_QUEUE="1day"             # (Slurm-only) cluster-specific name of queue (--qos option)
 ```
 

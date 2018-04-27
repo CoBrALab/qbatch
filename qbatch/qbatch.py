@@ -41,8 +41,8 @@ def _setupVars():
     CORES = os.environ.get("QBATCH_CORES", PPJ)
     global NODES
     NODES = os.environ.get("QBATCH_NODES", 1)
-    global PE
-    PE = os.environ.get("QBATCH_PE", "smp")
+    global SGE_PE
+    SGE_PE = os.environ.get("QBATCH_SGE_PE", "smp")
     global MEMVARS
     MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
     global MEM
@@ -318,7 +318,7 @@ def qbatchDriver(**kwargs):
     mem = kwargs.get('mem') != '0' and kwargs.get('mem') or None
     queue = kwargs.get('queue')
     verbose = kwargs.get('verbose')
-    dry_run = kwargs.get('n')
+    dry_run = kwargs.get('dryrun')
     depend_pattern = kwargs.get('depend')
     workdir = kwargs.get('workdir')
     logdir = kwargs.get('logdir').format(workdir=workdir)
@@ -328,12 +328,12 @@ def qbatchDriver(**kwargs):
     footer_commands = (kwargs.get('footer') and
                        '\n'.join(kwargs.get('footer')) or '')
     nodes = kwargs.get('nodes')
-    pe = kwargs.get('pe')
+    sge_pe = kwargs.get('sge_pe')
     memvars = kwargs.get('memvars').split(',')
     nodes_spec = (kwargs.get('pbs_nodes_spec') and
                   ':'.join(kwargs.get('pbs_nodes_spec')) + ':') or ''
-    use_array = not kwargs.get('i')
-    system = kwargs.get('b')
+    use_array = not kwargs.get('individual')
+    system = kwargs.get('system')
     env_mode = kwargs.get('env')
     shell = kwargs.get('shell')
 
@@ -411,7 +411,7 @@ def qbatchDriver(**kwargs):
         header = PBS_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'sge':
-        ppj = (ppj > 1) and '-pe {0} {1}'.format(pe, ppj) or ''
+        ppj = (ppj > 1) and '-pe {0} {1}'.format(sge_pe, ppj) or ''
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
         o_walltime = walltime and "-l h_rt={0}".format(walltime) or ''
         o_dependencies = depend_pattern and '-hold_jid \'' + \
@@ -592,7 +592,7 @@ def qbatchParser(args=None):
         help="""Name of queue to submit jobs to (defaults to no queue)""")
 
     parser.add_argument(
-        "-n", action="store_true",
+        "-n", "--dryrun", action="store_true",
         help="Dry run; Create jobfiles but do not submit or run any commands")
     parser.add_argument(
         "-v",
@@ -629,7 +629,7 @@ def qbatchParser(args=None):
         "--nodes", default=NODES, type=positive_int,
         help="(PBS and SLURM only) Nodes to request per job")
     group.add_argument(
-        "--pe", default=PE,
+        "--sge-pe", default=SGE_PE,
         help="""(SGE-only) The parallel environment to use if more than one
         processor per job is requested""")
     group.add_argument(
@@ -640,10 +640,11 @@ def qbatchParser(args=None):
         "--pbs-nodes-spec", action="append",
         help="(PBS-only) String to be inserted into nodes= line of job")
     group.add_argument(
-        "-i", action="store_true",
+        "-i", "--individual", action="store_true",
         help="Submit individual jobs instead of an array job")
     group.add_argument(
-        "-b", default=SYSTEM, choices=['pbs', 'sge', 'slurm', 'local'],
+        "-b", "--system", default=SYSTEM, choices=['pbs', 'sge', 'slurm',
+                                                   'local'],
         help="""The type of queueing system to use. 'pbs' and 'sge' both make
         calls to qsub to submit jobs. 'slurm' calls sbatch.
         'local' runs the entire command list (without chunking) locally.""")
