@@ -15,7 +15,6 @@ import errno
 
 
 def _setupVars():
-    global __version__
 
     # setup defaults (let environment override)
     global SYSTEM
@@ -28,8 +27,8 @@ def _setupVars():
     elif (SYSTEM == "pbs") or (SYSTEM == "sge"):
         which('qsub') or sys.exit("qbatch: error: QBATCH_SYSTEM set to pbs/sge"
                                   " but qsub not found")
-        which('qstat') or sys.exit("qbatch: error: QBATCH_SYSTEM set to pbs/sge"
-                                   " but qstat not found")
+        which('qstat') or sys.exit("qbatch: error: QBATCH_SYSTEM set to"
+                                   " pbs/sge but qstat not found")
     else:
         which('parallel') or sys.exit("qbatch: error: QBATCH_SYSTEM set to"
                                       " local but parallel not found")
@@ -494,8 +493,8 @@ def qbatchDriver(**kwargs):
             else:
                 script_lines = [
                     header,
-                    'which parallel > /dev/null 2>&1 || { echo "GNU parallel not '
-                    'found in job environment. Exiting."; exit 1; }',
+                    'which parallel > /dev/null 2>&1 || { echo "GNU parallel'
+                    ' not found in job environment. Exiting."; exit 1; }',
                     'CORES={0}'.format(ncores),
                     'export THREADS_PER_COMMAND={0}'.format(
                         compute_threads(kwargs.get('ppj'), ncores)),
