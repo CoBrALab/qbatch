@@ -14,12 +14,6 @@ import errno
 
 
 def _setupVars():
-    try:
-        __varsSet
-    except NameError:
-        pass
-    else:
-        return
     # setup defaults (let environment override)
     global SYSTEM
     SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
@@ -314,7 +308,12 @@ def which(program):
 
 
 def qbatchDriver(**kwargs):
-    _setupVars()
+    try:
+        __varsSet
+    except NameError:
+        _setupVars()
+    else:
+        pass
     command_file = kwargs.get('command_file')
     walltime = kwargs.get('walltime')
     chunk_size = kwargs.get('chunksize')
