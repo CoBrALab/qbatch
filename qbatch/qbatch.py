@@ -192,7 +192,7 @@ def positive_int(string):
 
 def int_or_percent(string):
     """Checks argument is an integer or integer percentage"""
-    if not re.match("^([-+]?\d+|^\d+%)$", string):  # noqa
+    if not re.match(r"^([-+]?\d+|^\d+%)$", string):
         msg = "Must be an integer or positive integer percentage"
         raise argparse.ArgumentTypeError(msg)
     return string
