@@ -19,7 +19,12 @@ setup(
     license='Unlicense',
     url="https://github.com/pipitone/qbatch",
     long_description=description,
-    scripts=["bin/qbatch"],
+    entry_points = {
+        "console_scripts": [
+            "qbatch=qbatch:qbatchParser",
+        ]
+    },
+    packages=["qbatch"],
     setup_requires=['nose>=1.0'],
     classifiers=[
        'Development Status :: 5 - Production/Stable',

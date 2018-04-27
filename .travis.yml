@@ -8,6 +8,8 @@ python:
     - "3.3"
     - "3.4"
     - "3.5"
+    - "3.6"
+
 
 addons:
     apt:
@@ -23,9 +25,9 @@ install:
     - make
     - sudo make install
     - cd ..    
-    - pip install .
-    - pip install pep8
+    - pip install -e .
+    - pip install pycodestyle
 
 script:
     - nosetests -v
-    - pep8 bin/qbatch test
+    - pycodestyle qbatch/qbatch.py

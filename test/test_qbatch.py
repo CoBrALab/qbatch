@@ -37,6 +37,21 @@ def test_qbatch_help():
     assert p.returncode == 0, err
 
 
+def test_python_import():
+    p = command_pipe('python -c "from qbatch import qbatchParser"')
+    out, _ = p.communicate(''.encode())
+
+    assert p.returncode == 0
+
+
+def test_python_help_launch():
+    p = command_pipe("""python -c "from qbatch import qbatchParser; """ +
+                     """qbatchParser(['-h'])" """)
+    out, _ = p.communicate(''.encode())
+
+    assert p.returncode == 0
+
+
 def test_run_qbatch_dryrun_single_output_exists():
     cmds = "\n".join(["echo hello"])
     p = command_pipe('qbatch -n -')
