@@ -4,7 +4,6 @@ from __future__ import division
 import argparse
 import math
 import os
-import os.path
 import pkg_resources
 import re
 import subprocess
