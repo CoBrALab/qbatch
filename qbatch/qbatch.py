@@ -11,6 +11,7 @@ import stat
 import sys
 import fnmatch
 import errno
+from textwrap import dedent
 
 
 def _setupVars():
@@ -60,7 +61,8 @@ def _setupVars():
                        'BASH_FUNC_*', "TMP", "TMPDIR"]
 
     global PBS_HEADER_TEMPLATE
-    PBS_HEADER_TEMPLATE = """
+    PBS_HEADER_TEMPLATE = dedent(
+        """\
     #!{shell}
     #PBS -l nodes={nodes}:{nodes_spec}ppn={ppj}
     #PBS -j oe
@@ -77,10 +79,11 @@ def _setupVars():
     {env}
     {header_commands}
     ARRAY_IND=$PBS_ARRAYID
-    """.strip()
+    """)
 
     global SGE_HEADER_TEMPLATE
-    SGE_HEADER_TEMPLATE = """
+    SGE_HEADER_TEMPLATE = dedent(
+        """\
     #!{shell}
     #$ {ppj}
     #$ -j y
@@ -97,10 +100,11 @@ def _setupVars():
     {env}
     {header_commands}
     ARRAY_IND=$SGE_TASK_ID
-    """.strip()
+    """)
 
     global SLURM_HEADER_TEMPLATE
-    SLURM_HEADER_TEMPLATE = """
+    SLURM_HEADER_TEMPLATE = dedent(
+        """\
     #!{shell}
     #SBATCH --nodes={nodes}
     #SBATCH {ppj}
@@ -117,15 +121,16 @@ def _setupVars():
     {env}
     {header_commands}
     ARRAY_IND=$SLURM_ARRAY_TASK_ID
-    """.strip()
+    """)
 
     global LOCAL_TEMPLATE
-    LOCAL_TEMPLATE = """
+    LOCAL_TEMPLATE = dedent(
+        """\
     #!{shell}
     {env}
     {header_commands}
     cd {workdir}
-    """.strip()
+    """)
 
     global __varsSet
     __varsSet = True
