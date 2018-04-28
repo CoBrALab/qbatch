@@ -224,7 +224,8 @@ def pbs_find_jobs(patterns):
     output = subprocess.check_output(['qstat', '-x'])
     if not output:
         print(
-            "WARN: Dependencies specified but no running jobs found",
+            "qbatch: warning: Dependencies specified but no running"
+            " jobs found",
             file=sys.stderr)
         return [], []
     tree = ET.fromstring(output)
@@ -269,7 +270,8 @@ def slurm_find_jobs(patterns):
     output = subprocess.check_output(['squeue', '--format="%j %A %T %u"'])
     if not output:
         print(
-            "WARN: Dependencies specified but no running jobs found",
+            "qbatch: warning: Dependencies specified but no running"
+            " jobs found",
             file=sys.stderr)
         return [], []
 
@@ -367,7 +369,7 @@ def qbatchDriver(**kwargs):
     # compute the number of jobs needed. This will be the number of elements in
     # the array job
     if len(task_list) == 0:
-        print("No jobs to submit, exiting", file=sys.stderr)
+        print("qbatch: warning: No jobs to submit, exiting", file=sys.stderr)
         sys.exit()
 
     if system == 'local':
@@ -398,12 +400,15 @@ def qbatchDriver(**kwargs):
             matching_array_jobids, matching_regular_jobids = pbs_find_jobs(
                 depend_pattern)
         except Exception as e:
-            sys.exit("Error matching depend pattern {0}".format(str(e)))
+            sys.exit(
+                "qbatch: error: Error matching"
+                " depend pattern {0}".format(str(e)))
 
         if (matching_array_jobids and matching_regular_jobids):
-            print("Warning: depdendencies on both regular and array jobs "
-                  "found, this is only supported on Torque 6.0.2 and above. "
-                  "You may get qsub error code 168.", file=sys.stderr)
+            print("qbatch: warning: depdendencies on both regular and"
+                  " array jobs found, this is only supported on"
+                  " Torque 6.0.2 and above. You may get qsub error"
+                  " code 168.", file=sys.stderr)
 
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
         o_walltime = walltime and "-l walltime={0}".format(walltime) or ''
@@ -536,7 +541,7 @@ def qbatchDriver(**kwargs):
                 continue
             return_code = subprocess.call(['qsub', script])
             if return_code:
-                sys.exit("qsub call " +
+                sys.exit("qbatch: error: qsub call " +
                          "returned error code {0}".format(return_code))
         elif system == 'slurm':
             if verbose:
@@ -545,7 +550,7 @@ def qbatchDriver(**kwargs):
                 continue
             return_code = subprocess.call(['sbatch', script])
             if return_code:
-                sys.exit("sbatch call " +
+                sys.exit("qbatch: error: sbatch call " +
                          "returned error code {0}".format(return_code))
         else:
             logfile = "{0}/{1}.log".format(logdir, job_name)
@@ -555,7 +560,7 @@ def qbatchDriver(**kwargs):
                 continue
             return_code = run_command(script, logfile=logfile)
             if return_code:
-                sys.exit("local run call " +
+                sys.exit("qbatch: error: local run call " +
                          "returned error code {0}".format(return_code))
 
 
@@ -676,6 +681,9 @@ def qbatchParser(args=None):
         and launching single commands""")
 
     args = parser.parse_args(args)
+    if not args.command_file:
+        parser.print_usage()
+        sys.exit("qbatch: error: no command file or command provided")
     qbatchDriver(**vars(args))
 
 
