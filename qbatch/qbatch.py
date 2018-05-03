@@ -279,7 +279,11 @@ def slurm_find_jobs(patterns):
     for line in output.split("\n"):
         for pattern in patterns:
             # ignore completed jobs
-            if re.search(pattern, line) and not re.search('COMPLETED', line):
+            if re.search(
+                    pattern.encode('utf-8'),
+                    line) and not re.search(
+                    'COMPLETED',
+                    line):
                 jobid = line.split()[1]
                 regular_matches.append(jobid)
     return regular_matches
