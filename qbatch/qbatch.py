@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from __future__ import division
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from future import standard_library
+from builtins import *
+from builtins import str
+from builtins import range
 import argparse
 import math
 import os
@@ -12,6 +18,7 @@ import sys
 import fnmatch
 import errno
 from textwrap import dedent
+standard_library.install_aliases()
 
 
 def _setupVars():
@@ -389,7 +396,7 @@ def qbatchDriver(**kwargs):
     env = ''
     if env_mode == 'copied':
         env = '\n'.join(['export {0}="{1}"'.format(k, v.replace('"', r'\"'))
-                         for k, v in os.environ.items()
+                         for k, v in list(os.environ.items())
                          if not any(fnmatch.fnmatch(k, pattern) for pattern
                                     in IGNORE_ENV_VARS)])
         env = env.replace("$", "$$")
