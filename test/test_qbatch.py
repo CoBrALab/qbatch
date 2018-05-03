@@ -3,18 +3,24 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from builtins import range
+from builtins import str
+from builtins import map
+from future import standard_library
 from os.path import join, exists
+from io import open
 import os
 import shutil
 import shlex
 from subprocess import Popen, PIPE, STDOUT
 import tempfile
 import sys
+standard_library.install_aliases()
 
 tempdir = None
 
 # set this to folder that all nodes on the cluster have access to
-SHARED_FOLDER = os.getcwd()
+SHARED_FOLDER = os.getcwdu()
 
 
 def setup_module():
@@ -28,18 +34,22 @@ def teardown_module():
 
 
 def command_pipe(command):
-    return Popen(shlex.split(command), stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    return Popen(
+        shlex.split(command),
+        stdin=PIPE,
+        stdout=PIPE,
+        stderr=STDOUT)
 
 
 def test_qbatch_help():
     p = command_pipe('qbatch --help')
-    out, err = p.communicate(''.encode())
-    assert p.returncode == 0, err
+    out, _ = p.communicate(''.encode('utf-8'))
+    assert p.returncode == 0, p.err
 
 
 def test_python_import():
     p = command_pipe('python -c "from qbatch import qbatchParser"')
-    out, _ = p.communicate(''.encode())
+    out, _ = p.communicate(''.encode('utf-8'))
 
     assert p.returncode == 0
 
@@ -47,7 +57,7 @@ def test_python_import():
 def test_python_help_launch():
     p = command_pipe("""python -c "from qbatch import qbatchParser; """ +
                      """qbatchParser(['-h'])" """)
-    out, _ = p.communicate(''.encode())
+    out, _ = p.communicate(''.encode('utf-8'))
 
     assert p.returncode == 0
 
@@ -55,7 +65,7 @@ def test_python_help_launch():
 def test_run_qbatch_dryrun_single_output_exists():
     cmds = "\n".join(["echo hello"])
     p = command_pipe('qbatch -n -')
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     assert p.returncode == 0
     assert exists(join(tempdir, 'STDIN.0'))
@@ -69,7 +79,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
     cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
     p = command_pipe('qbatch --env none -n -j2 \
                      -b sge -c {0} -'.format(chunk_size))
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     array_script = join(tempdir, 'STDIN.array')
     assert p.returncode == 0
@@ -85,7 +95,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
 
         assert array_pipe.returncode == 0, \
             "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
-        assert set(out.decode().splitlines()) == set(expected.splitlines()), \
+        assert set(out.splitlines()) == set(expected.splitlines()), \
             "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
@@ -97,7 +107,7 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
     cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
     p = command_pipe('qbatch --env none -n -j2 \
                      -b pbs -c {0} -'.format(chunk_size))
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     array_script = join(tempdir, 'STDIN.array')
     assert p.returncode == 0
@@ -113,7 +123,7 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
 
         assert array_pipe.returncode == 0, \
             "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
-        assert set(out.decode().splitlines()) == set(expected.splitlines()), \
+        assert set(out.splitlines()) == set(expected.splitlines()), \
             "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
@@ -125,7 +135,7 @@ def test_run_qbatch_slurm_dryrun_array_piped_chunks():
     cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
     p = command_pipe('qbatch --env none -n -j2 \
                      -b slurm -c {0} -'.format(chunk_size))
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     array_script = join(tempdir, 'STDIN.array')
     assert p.returncode == 0
@@ -141,19 +151,19 @@ def test_run_qbatch_slurm_dryrun_array_piped_chunks():
 
         assert array_pipe.returncode == 0, \
             "Chunk {0}: return code = {1}".format(chunk, array_pipe.returncode)
-        assert set(out.decode().splitlines()) == set(expected.splitlines()), \
+        assert set(out.splitlines()) == set(expected.splitlines()), \
             "Chunk {0}: Expected {1} but got {2}".format(chunk, expected, out)
 
 
 def test_run_qbatch_local_piped_commands():
     cmds = "\n".join(["echo hello"] * 24)
     p = command_pipe('qbatch --env none -j2 -b local -')
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     expected, _ = command_pipe(
-        'parallel --tag --line-buffer -j2').communicate(cmds.encode())
+        'parallel --tag --line-buffer -j2').communicate(cmds.encode('utf-8'))
 
     assert p.returncode == 0, \
-        "Return code = {0}".format(err)
+        "Return code = {0}".format(p.returncode)
     assert set(out.splitlines()) == set(expected.splitlines()), \
         "Expected {0} but got {1}".format(expected, out)

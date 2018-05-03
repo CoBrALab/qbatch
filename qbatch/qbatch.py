@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from __future__ import division
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from builtins import range
+from builtins import int
+from builtins import str
+from builtins import open
+from future import standard_library
 import argparse
 import math
 import os
@@ -12,6 +19,11 @@ import sys
 import fnmatch
 import errno
 from textwrap import dedent
+from io import open
+standard_library.install_aliases()
+
+if "getcwdu" not in dir(os):
+    os.getcwdu = os.getcwd
 
 
 def _setupVars():
@@ -140,19 +152,21 @@ def run_command(command, logfile=None):
     # Run command and collect stdout
     # http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html # noqa
     process = subprocess.Popen(
-        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT)
     if logfile:
-        filehandle = open(logfile, 'wb')
+        filehandle = open(logfile, 'w', encoding='utf-8')
     while True:
         output = process.stdout.readline()
-        if output.decode('UTF-8') == '' and process.poll() is not None:
+        if output == '' and process.poll() is not None:
             break
         if output and logfile:
-            print(output.strip().decode('UTF-8'))
-            filehandle.write(output.strip())
-            filehandle.write("\n".encode('UTF-8'))
+            print(output.strip())
+            filehandle.write(output.strip().decode('UTF-8'))
+            filehandle.write("\n")
         elif output:
-            print(output.strip().decode('UTF-8'))
+            print(output.strip())
     rc = process.poll()
     if logfile:
         filehandle.close()
@@ -189,7 +203,7 @@ def positive_int(string):
 
 def int_or_percent(string):
     """Checks argument is an integer or integer percentage"""
-    if not re.match(r"^([-+]?\d+|^\d+%)$", string):
+    if not re.match(r'^([-+]?\d+|^\d+%)$', string, flags=re.UNICODE):
         msg = "Must be an integer or positive integer percentage"
         raise argparse.ArgumentTypeError(msg)
     return string
@@ -267,7 +281,9 @@ def slurm_find_jobs(patterns):
     if isinstance(patterns, str):
         patterns = [patterns]
 
-    output = subprocess.check_output(['squeue', '--format="%j %A %T %u"'])
+    output = subprocess.check_output(
+        ['squeue', '--user=$USER', '--states=PD,R', '--format="%j %A"'],
+        shell=True)
     if not output:
         print(
             "qbatch: warning: Dependencies specified but no running"
@@ -279,7 +295,7 @@ def slurm_find_jobs(patterns):
     for line in output.split("\n"):
         for pattern in patterns:
             # ignore completed jobs
-            if re.search(pattern, line) and not re.search('COMPLETED', line):
+            if re.search(pattern, line, flags=re.UNICODE):
                 jobid = line.split()[1]
                 regular_matches.append(jobid)
     return regular_matches
@@ -358,7 +374,8 @@ def qbatchDriver(**kwargs):
             task_list = []
             for file in command_file:
                 if os.path.isfile(file):
-                    task_list = task_list + open(file).readlines()
+                    task_list = task_list + open(file,
+                                                 encoding='utf-8').readlines()
                     job_name = job_name or os.path.basename(file)
                 else:
                     sys.exit("qbatch: error: command_file {0}".format(file) +
@@ -495,7 +512,7 @@ def qbatchDriver(**kwargs):
             'EOF']
 
         scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".array")
-        script = open(scriptfile, 'w')
+        script = open(scriptfile, 'w', encoding='utf-8')
         script.write('\n'.join(script_lines))
         if footer_commands:
             script.write('\n')
@@ -523,7 +540,7 @@ def qbatchDriver(**kwargs):
                     ''.join(task_list[chunk * chunk_size:chunk *
                                       chunk_size + chunk_size]),
                     'EOF']
-            script = open(scriptfile, "w")
+            script = open(scriptfile, "w", encoding='utf-8')
             script.write('\n'.join(script_lines))
             if footer_commands:
                 script.write('\n')
@@ -539,7 +556,8 @@ def qbatchDriver(**kwargs):
                 print("Running: qsub {0}".format(script))
             if dry_run:
                 continue
-            return_code = subprocess.call(['qsub', script])
+            return_code = subprocess.call(
+                ['qsub', script])
             if return_code:
                 sys.exit("qbatch: error: qsub call " +
                          "returned error code {0}".format(return_code))
@@ -548,7 +566,8 @@ def qbatchDriver(**kwargs):
                 print("Running: sbatch {0}".format(script))
             if dry_run:
                 continue
-            return_code = subprocess.call(['sbatch', script])
+            return_code = subprocess.call(
+                ['sbatch', script])
             if return_code:
                 sys.exit("qbatch: error: sbatch call " +
                          "returned error code {0}".format(return_code))
@@ -628,7 +647,7 @@ def qbatchParser(args=None):
         given glob pattern or job id matching given job id(s) before
         starting""")
     group.add_argument(
-        "-d", "--workdir", default=os.getcwd(),
+        "-d", "--workdir", default=os.getcwdu(),
         help="Job working directory")
     group.add_argument(
         "--logdir", action="store", default="{workdir}/logs",
