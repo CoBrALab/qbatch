@@ -38,13 +38,13 @@ def command_pipe(command):
 
 def test_qbatch_help():
     p = command_pipe('qbatch --help')
-    out, err = p.communicate(''.encode())
-    assert p.returncode == 0, err
+    out, _ = p.communicate(''.encode('utf-8'))
+    assert p.returncode == 0, p.returncode
 
 
 def test_python_import():
     p = command_pipe('python -c "from qbatch import qbatchParser"')
-    out, _ = p.communicate(''.encode())
+    out, _ = p.communicate(''.encode('utf-8'))
 
     assert p.returncode == 0
 
@@ -52,7 +52,7 @@ def test_python_import():
 def test_python_help_launch():
     p = command_pipe("""python -c "from qbatch import qbatchParser; """ +
                      """qbatchParser(['-h'])" """)
-    out, _ = p.communicate(''.encode())
+    out, _ = p.communicate(''.encode('utf-8'))
 
     assert p.returncode == 0
 
@@ -60,7 +60,7 @@ def test_python_help_launch():
 def test_run_qbatch_dryrun_single_output_exists():
     cmds = "\n".join(["echo hello"])
     p = command_pipe('qbatch -n -')
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     assert p.returncode == 0
     assert os.path.exists(os.path.join(tempdir, 'STDIN.0'))
@@ -74,7 +74,7 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
     cmds = "\n".join(['echo {0}'.format(x) for x in outputs])
     p = command_pipe('qbatch --env none -n -j2 \
                      -b sge -c {0} -'.format(chunk_size))
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     array_script = os.path.join(tempdir, 'STDIN.array')
     assert p.returncode == 0
@@ -101,7 +101,7 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
     cmds = "\n".join(['echo {0}'.format(x) for x in outputs])
     p = command_pipe('qbatch --env none -n -j2 \
                      -b pbs -c {0} -'.format(chunk_size))
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     array_script = os.path.join(tempdir, 'STDIN.array')
     assert p.returncode == 0
@@ -128,7 +128,7 @@ def test_run_qbatch_slurm_dryrun_array_piped_chunks():
     cmds = "\n".join(['echo {0}'.format(x) for x in outputs])
     p = command_pipe('qbatch --env none -n -j2 \
                      -b slurm -c {0} -'.format(chunk_size))
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     array_script = os.path.join(tempdir, 'STDIN.array')
     assert p.returncode == 0
@@ -150,12 +150,14 @@ def test_run_qbatch_slurm_dryrun_array_piped_chunks():
 def test_run_qbatch_local_piped_commands():
     cmds = "\n".join(["echo hello"] * 24)
     p = command_pipe('qbatch --env none -j2 -b local -')
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     expected, _ = command_pipe(
-        'parallel --tag --line-buffer -j2').communicate(cmds.encode())
+        'parallel --tag --line-buffer -j2').communicate(cmds.encode('utf-8'))
+
+    print(out)
 
     assert p.returncode == 0, \
-        "Return code = {0}".format(err)
+        "Return code = {0}".format(p.returncode)
     assert set(out.splitlines()) == set(expected.splitlines()), \
         "Expected {0} but got {1}".format(expected, out)
