@@ -22,6 +22,9 @@ from textwrap import dedent
 from io import open
 standard_library.install_aliases()
 
+if "getcwdu" not in dir(os):
+    os.getcwdu = os.getcwd
+
 
 def _setupVars():
     # setup defaults (let environment override)
