@@ -25,7 +25,6 @@ setup(
         ]
     },
     packages=["qbatch"],
-    setup_requires=['nose>=1.0'],
     classifiers=[
        'Development Status :: 5 - Production/Stable',
        'Environment :: Console',
