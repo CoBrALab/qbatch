@@ -19,6 +19,7 @@ import sys
 import fnmatch
 import errno
 from textwrap import dedent
+from io import open
 standard_library.install_aliases()
 
 
@@ -150,20 +151,19 @@ def run_command(command, logfile=None):
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=True)
+        stderr=subprocess.STDOUT)
     if logfile:
-        filehandle = open(logfile, 'w')
+        filehandle = open(logfile, 'w', encoding='utf-8')
     while True:
         output = process.stdout.readline()
-        if output.decode('UTF-8') == '' and process.poll() is not None:
+        if output == '' and process.poll() is not None:
             break
         if output and logfile:
-            print(output.strip().decode('UTF-8'))
-            filehandle.write(output.strip())
-            filehandle.write("\n".encode('UTF-8'))
+            print(output.strip())
+            filehandle.write(output.strip().decode('UTF-8'))
+            filehandle.write("\n")
         elif output:
-            print(output.strip().decode('UTF-8'))
+            print(output.strip())
     rc = process.poll()
     if logfile:
         filehandle.close()
@@ -232,7 +232,7 @@ def pbs_find_jobs(patterns):
 
     import xml.etree.ElementTree as ET
 
-    output = subprocess.check_output(['qstat', '-x'], universal_newlines=True)
+    output = subprocess.check_output(['qstat', '-x'])
     if not output:
         print(
             "qbatch: warning: Dependencies specified but no running"
@@ -280,7 +280,7 @@ def slurm_find_jobs(patterns):
 
     output = subprocess.check_output(
         ['squeue', '--user=$USER', '--states=PD,R', '--format="%j %A"'],
-        shell=True, universal_newlines=True)
+        shell=True)
     if not output:
         print(
             "qbatch: warning: Dependencies specified but no running"
@@ -371,7 +371,8 @@ def qbatchDriver(**kwargs):
             task_list = []
             for file in command_file:
                 if os.path.isfile(file):
-                    task_list = task_list + open(file).readlines()
+                    task_list = task_list + open(file,
+                                                 encoding='utf-8').readlines()
                     job_name = job_name or os.path.basename(file)
                 else:
                     sys.exit("qbatch: error: command_file {0}".format(file) +
@@ -508,7 +509,7 @@ def qbatchDriver(**kwargs):
             'EOF']
 
         scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".array")
-        script = open(scriptfile, 'w')
+        script = open(scriptfile, 'w', encoding='utf-8')
         script.write('\n'.join(script_lines))
         if footer_commands:
             script.write('\n')
@@ -536,7 +537,7 @@ def qbatchDriver(**kwargs):
                     ''.join(task_list[chunk * chunk_size:chunk *
                                       chunk_size + chunk_size]),
                     'EOF']
-            script = open(scriptfile, "w")
+            script = open(scriptfile, "w", encoding='utf-8')
             script.write('\n'.join(script_lines))
             if footer_commands:
                 script.write('\n')
@@ -553,8 +554,7 @@ def qbatchDriver(**kwargs):
             if dry_run:
                 continue
             return_code = subprocess.call(
-                ['qsub', script],
-                universal_newlines=True)
+                ['qsub', script])
             if return_code:
                 sys.exit("qbatch: error: qsub call " +
                          "returned error code {0}".format(return_code))
@@ -564,8 +564,7 @@ def qbatchDriver(**kwargs):
             if dry_run:
                 continue
             return_code = subprocess.call(
-                ['sbatch', script],
-                universal_newlines=True)
+                ['sbatch', script])
             if return_code:
                 sys.exit("qbatch: error: sbatch call " +
                          "returned error code {0}".format(return_code))
