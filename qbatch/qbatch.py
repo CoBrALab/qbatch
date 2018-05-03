@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from __future__ import division
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from builtins import range
+from builtins import int
+from builtins import str
+from builtins import open
+from future import standard_library
 import argparse
 import math
 import os
@@ -12,6 +19,7 @@ import sys
 import fnmatch
 import errno
 from textwrap import dedent
+standard_library.install_aliases()
 
 
 def _setupVars():
@@ -140,9 +148,12 @@ def run_command(command, logfile=None):
     # Run command and collect stdout
     # http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html # noqa
     process = subprocess.Popen(
-        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True)
     if logfile:
-        filehandle = open(logfile, 'wb')
+        filehandle = open(logfile, 'w')
     while True:
         output = process.stdout.readline()
         if output.decode('UTF-8') == '' and process.poll() is not None:
@@ -189,7 +200,7 @@ def positive_int(string):
 
 def int_or_percent(string):
     """Checks argument is an integer or integer percentage"""
-    if not re.match(r"^([-+]?\d+|^\d+%)$", string):
+    if not re.match(r'^([-+]?\d+|^\d+%)$', string, flags=re.UNICODE):
         msg = "Must be an integer or positive integer percentage"
         raise argparse.ArgumentTypeError(msg)
     return string
@@ -221,7 +232,7 @@ def pbs_find_jobs(patterns):
 
     import xml.etree.ElementTree as ET
 
-    output = subprocess.check_output(['qstat', '-x'])
+    output = subprocess.check_output(['qstat', '-x'], universal_newlines=True)
     if not output:
         print(
             "qbatch: warning: Dependencies specified but no running"
@@ -267,7 +278,9 @@ def slurm_find_jobs(patterns):
     if isinstance(patterns, str):
         patterns = [patterns]
 
-    output = subprocess.check_output(['squeue', '--format="%j %A %T %u"'])
+    output = subprocess.check_output(
+        ['squeue', '--user=$USER', '--states=PD,R', '--format="%j %A"'],
+        shell=True, universal_newlines=True)
     if not output:
         print(
             "qbatch: warning: Dependencies specified but no running"
@@ -279,7 +292,7 @@ def slurm_find_jobs(patterns):
     for line in output.split("\n"):
         for pattern in patterns:
             # ignore completed jobs
-            if re.search(pattern, line) and not re.search('COMPLETED', line):
+            if re.search(pattern, line, flags=re.UNICODE):
                 jobid = line.split()[1]
                 regular_matches.append(jobid)
     return regular_matches
@@ -539,7 +552,9 @@ def qbatchDriver(**kwargs):
                 print("Running: qsub {0}".format(script))
             if dry_run:
                 continue
-            return_code = subprocess.call(['qsub', script])
+            return_code = subprocess.call(
+                ['qsub', script],
+                universal_newlines=True)
             if return_code:
                 sys.exit("qbatch: error: qsub call " +
                          "returned error code {0}".format(return_code))
@@ -548,7 +563,9 @@ def qbatchDriver(**kwargs):
                 print("Running: sbatch {0}".format(script))
             if dry_run:
                 continue
-            return_code = subprocess.call(['sbatch', script])
+            return_code = subprocess.call(
+                ['sbatch', script],
+                universal_newlines=True)
             if return_code:
                 sys.exit("qbatch: error: sbatch call " +
                          "returned error code {0}".format(return_code))
@@ -628,7 +645,7 @@ def qbatchParser(args=None):
         given glob pattern or job id matching given job id(s) before
         starting""")
     group.add_argument(
-        "-d", "--workdir", default=os.getcwd(),
+        "-d", "--workdir", default=os.getcwdu(),
         help="Job working directory")
     group.add_argument(
         "--logdir", action="store", default="{workdir}/logs",
