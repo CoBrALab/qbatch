@@ -3,13 +3,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from os.path import join, exists
+from future import standard_library
+from builtins import *
+from builtins import str
+from builtins import range
 import os
 import shutil
 import shlex
 from subprocess import Popen, PIPE, STDOUT
 import tempfile
 import sys
+standard_library.install_aliases()
+
 
 tempdir = None
 
@@ -33,13 +38,13 @@ def command_pipe(command):
 
 def test_qbatch_help():
     p = command_pipe('qbatch --help')
-    out, err = p.communicate(''.encode())
-    assert p.returncode == 0, err
+    out, _ = p.communicate(''.encode('utf-8'))
+    assert p.returncode == 0, p.returncode
 
 
 def test_python_import():
     p = command_pipe('python -c "from qbatch import qbatchParser"')
-    out, _ = p.communicate(''.encode())
+    out, _ = p.communicate(''.encode('utf-8'))
 
     assert p.returncode == 0
 
@@ -47,7 +52,7 @@ def test_python_import():
 def test_python_help_launch():
     p = command_pipe("""python -c "from qbatch import qbatchParser; """ +
                      """qbatchParser(['-h'])" """)
-    out, _ = p.communicate(''.encode())
+    out, _ = p.communicate(''.encode('utf-8'))
 
     assert p.returncode == 0
 
@@ -55,31 +60,30 @@ def test_python_help_launch():
 def test_run_qbatch_dryrun_single_output_exists():
     cmds = "\n".join(["echo hello"])
     p = command_pipe('qbatch -n -')
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     assert p.returncode == 0
-    assert exists(join(tempdir, 'STDIN.0'))
+    assert os.path.exists(os.path.join(tempdir, 'STDIN.0'))
 
 
 def test_run_qbatch_sge_dryrun_array_piped_chunks():
     chunk_size = 10
     chunks = 5
-    outputs = range(chunk_size * chunks)
+    outputs = list(range(chunk_size * chunks))
 
-    cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
+    cmds = "\n".join(['echo {0}'.format(x) for x in outputs])
     p = command_pipe('qbatch --env none -n -j2 \
                      -b sge -c {0} -'.format(chunk_size))
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
-    array_script = join(tempdir, 'STDIN.array')
+    array_script = os.path.join(tempdir, 'STDIN.array')
     assert p.returncode == 0
-    assert exists(array_script)
+    assert os.path.exists(array_script)
 
     for chunk in range(1, chunks + 1):
         os.environ['SGE_TASK_ID'] = str(chunk)
-        expected = '\n'.join(
-            map(lambda x: 'echo {0}\t{0}'.format(x),
-                outputs[(chunk - 1) * chunk_size:chunk * chunk_size])) + '\n'
+        expected = '\n'.join(['echo {0}\t{0}'.format(x) for x in outputs[(
+            chunk - 1) * chunk_size:chunk * chunk_size]]) + '\n'
         array_pipe = command_pipe(array_script)
         out, _ = array_pipe.communicate()
 
@@ -92,22 +96,21 @@ def test_run_qbatch_sge_dryrun_array_piped_chunks():
 def test_run_qbatch_pbs_dryrun_array_piped_chunks():
     chunk_size = 10
     chunks = 5
-    outputs = range(chunk_size * chunks)
+    outputs = list(range(chunk_size * chunks))
 
-    cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
+    cmds = "\n".join(['echo {0}'.format(x) for x in outputs])
     p = command_pipe('qbatch --env none -n -j2 \
                      -b pbs -c {0} -'.format(chunk_size))
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
-    array_script = join(tempdir, 'STDIN.array')
+    array_script = os.path.join(tempdir, 'STDIN.array')
     assert p.returncode == 0
-    assert exists(array_script)
+    assert os.path.exists(array_script)
 
     for chunk in range(1, chunks + 1):
         os.environ['PBS_ARRAYID'] = str(chunk)
-        expected = '\n'.join(
-            map(lambda x: 'echo {0}\t{0}'.format(x),
-                outputs[(chunk - 1) * chunk_size:chunk * chunk_size])) + '\n'
+        expected = '\n'.join(['echo {0}\t{0}'.format(x) for x in outputs[(
+            chunk - 1) * chunk_size:chunk * chunk_size]]) + '\n'
         array_pipe = command_pipe(array_script)
         out, _ = array_pipe.communicate()
 
@@ -120,22 +123,21 @@ def test_run_qbatch_pbs_dryrun_array_piped_chunks():
 def test_run_qbatch_slurm_dryrun_array_piped_chunks():
     chunk_size = 10
     chunks = 5
-    outputs = range(chunk_size * chunks)
+    outputs = list(range(chunk_size * chunks))
 
-    cmds = "\n".join(map(lambda x: 'echo {0}'.format(x), outputs))
+    cmds = "\n".join(['echo {0}'.format(x) for x in outputs])
     p = command_pipe('qbatch --env none -n -j2 \
                      -b slurm -c {0} -'.format(chunk_size))
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
-    array_script = join(tempdir, 'STDIN.array')
+    array_script = os.path.join(tempdir, 'STDIN.array')
     assert p.returncode == 0
-    assert exists(array_script)
+    assert os.path.exists(array_script)
 
     for chunk in range(1, chunks + 1):
         os.environ['SLURM_ARRAY_TASK_ID'] = str(chunk)
-        expected = '\n'.join(
-            map(lambda x: 'echo {0}\t{0}'.format(x),
-                outputs[(chunk - 1) * chunk_size:chunk * chunk_size])) + '\n'
+        expected = '\n'.join(['echo {0}\t{0}'.format(x) for x in outputs[(
+            chunk - 1) * chunk_size:chunk * chunk_size]]) + '\n'
         array_pipe = command_pipe(array_script)
         out, _ = array_pipe.communicate()
 
@@ -148,12 +150,14 @@ def test_run_qbatch_slurm_dryrun_array_piped_chunks():
 def test_run_qbatch_local_piped_commands():
     cmds = "\n".join(["echo hello"] * 24)
     p = command_pipe('qbatch --env none -j2 -b local -')
-    out, _ = p.communicate(cmds.encode())
+    out, _ = p.communicate(cmds.encode('utf-8'))
 
     expected, _ = command_pipe(
-        'parallel --tag --line-buffer -j2').communicate(cmds.encode())
+        'parallel --tag --line-buffer -j2').communicate(cmds.encode('utf-8'))
+
+    print(out)
 
     assert p.returncode == 0, \
-        "Return code = {0}".format(err)
+        "Return code = {0}".format(p.returncode)
     assert set(out.splitlines()) == set(expected.splitlines()), \
         "Expected {0} but got {1}".format(expected, out)

@@ -13,7 +13,7 @@ except (IOError, ImportError):
 setup(
     name='qbatch',
     version='2.0.2',
-    description='Execute shell command lines in parallel on Slurm S(on) of Grid Engine (SGE) and PBS/Torque clusters',
+    description='Execute shell command lines in parallel on Slurm, S(sun|on of) Grid Engine (SGE) and PBS/Torque clusters',
     author="Jon Pipitone, Gabriel A. Devenyi",
     author_email="jon@pipitone.ca, gdevenyi@gmail.com",
     license='Unlicense',
@@ -25,7 +25,6 @@ setup(
         ]
     },
     packages=["qbatch"],
-    setup_requires=['nose>=1.0'],
     classifiers=[
        'Development Status :: 5 - Production/Stable',
        'Environment :: Console',
