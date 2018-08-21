@@ -520,6 +520,8 @@ def qbatchDriver(**kwargs):
             if len(task_list) == 1:
                 script_lines = [
                     header,
+                    'export THREADS_PER_COMMAND={0}'.format(
+                        compute_threads(kwargs.get('ppj'), ncores)),
                     ''.join(task_list)]
             else:
                 script_lines = [
