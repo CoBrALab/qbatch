@@ -476,8 +476,9 @@ def qbatchDriver(**kwargs):
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '--{0}'.format(mem_string) or ''
         o_env = (env_mode == 'batch') and '--export=ALL' or '--export=NONE'
-        logfile = logdir and '--output={0}/slurm-{1}-%J.out'.format(
-            logdir, job_name) or ''
+        logfile = use_array and '--output={0}/slurm-{1}-%A_%a.out'.format(
+            logdir, job_name) or '--output={0}/slurm-{1}-%J.out'.format(
+            logdir, job_name)
         o_queue = queue and '--partition={0}'.format(queue) or ''
 
         header = SLURM_HEADER_TEMPLATE.format(**vars())
