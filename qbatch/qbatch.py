@@ -276,7 +276,9 @@ def slurm_find_jobs(patterns):
         patterns = [patterns]
 
     output = subprocess.check_output(
-        ['squeue', '--format="%j %A %T %u"']).decode('utf-8')
+        ['squeue', '-h', '--user=$USER', '--states=PD,R,S,CF',
+         '--format="%j %A"'],
+        shell=True).decode('utf-8')
     if not output:
         print(
             "qbatch: warning: Dependencies specified but no running"
@@ -288,7 +290,7 @@ def slurm_find_jobs(patterns):
     for line in output.split("\n"):
         for pattern in patterns:
             # ignore completed jobs
-            if re.search(pattern, line) and not re.search('COMPLETED', line):
+            if re.search(pattern, line):
                 jobid = line.split()[1]
                 regular_matches.append(jobid)
     return regular_matches
