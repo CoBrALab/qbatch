@@ -42,6 +42,24 @@ def test_qbatch_help():
     assert p.returncode == 0, p.returncode
 
 
+def test_qbatch_help_no_queue_binary():
+    """Tests that --help works when there is no queuing binary available.
+
+    If QBATCH_SYSTEM is not 'local', using --help should still work.
+
+    This tests for the following issue:
+        https://github.com/pipitone/qbatch/issues/177
+    """
+
+    os.environ['QBATCH_SYSTEM'] = 'slurm'
+    try:
+        p = command_pipe('qbatch --help')
+        out, _ = p.communicate(''.encode('utf-8'))
+        assert p.returncode == 0, p.returncode
+    finally:
+        del os.environ['QBATCH_SYSTEM']
+
+
 def test_python_import():
     p = command_pipe('python -c "from qbatch import qbatchParser"')
     out, _ = p.communicate(''.encode('utf-8'))
