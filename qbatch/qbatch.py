@@ -26,19 +26,6 @@ def _setupVars():
     # setup defaults (let environment override)
     global SYSTEM
     SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
-    if SYSTEM == "slurm":
-        which('sbatch') or sys.exit("qbatch: error: QBATCH_SYSTEM set to slurm"
-                                    " but sbatch not found")
-        which('squeue') or sys.exit("qbatch: error: QBATCH_SYSTEM set to slurm"
-                                    " but squeue not found")
-    elif (SYSTEM == "pbs") or (SYSTEM == "sge"):
-        which('qsub') or sys.exit("qbatch: error: QBATCH_SYSTEM set to pbs/sge"
-                                  " but qsub not found")
-        which('qstat') or sys.exit("qbatch: error: QBATCH_SYSTEM set to"
-                                   " pbs/sge but qstat not found")
-    else:
-        which('parallel') or sys.exit("qbatch: error: QBATCH_SYSTEM set to"
-                                      " local but parallel not found")
     global PPJ
     PPJ = os.environ.get("QBATCH_PPJ", "1")
     global CHUNKSIZE
@@ -546,6 +533,21 @@ def qbatchDriver(**kwargs):
                 script.write(footer_commands)
             script.close()
             job_scripts.append(scriptfile)
+
+    # preflight checks
+    if SYSTEM == "slurm":
+        which('sbatch') or sys.exit("qbatch: error: QBATCH_SYSTEM set to slurm"
+                                    " but sbatch not found")
+        which('squeue') or sys.exit("qbatch: error: QBATCH_SYSTEM set to slurm"
+                                    " but squeue not found")
+    elif (SYSTEM == "pbs") or (SYSTEM == "sge"):
+        which('qsub') or sys.exit("qbatch: error: QBATCH_SYSTEM set to pbs/sge"
+                                  " but qsub not found")
+        which('qstat') or sys.exit("qbatch: error: QBATCH_SYSTEM set to"
+                                   " pbs/sge but qstat not found")
+    else:
+        which('parallel') or sys.exit("qbatch: error: QBATCH_SYSTEM set to"
+                                      " local but parallel not found")
 
     # execute the job script(s)
     for script in job_scripts:
