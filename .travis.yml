@@ -1,34 +1,37 @@
 sudo: required
 dist: trusty
-
 language: python
-python: 
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
-  - "3.5-dev"  # 3.5 development branch
-  - "3.6"
-  - "3.6-dev"  # 3.6 development branch
-  - "3.7-dev"  # 3.7 development branch
-
+python:
+- '2.7'
+- '3.3'
+- '3.4'
+- '3.5'
+- 3.5-dev
+- '3.6'
+- 3.6-dev
+- 3.7-dev
 addons:
-    apt:
-        packages:
-        - gridengine-client
-        - slurm-llnl
-
+  apt:
+    packages:
+    - gridengine-client
+    - slurm-llnl
 install:
-    - wget https://ftp.gnu.org/gnu/parallel/parallel-latest.tar.bz2
-    - tar -xvjf parallel*
-    - cd parallel*
-    - ./configure
-    - make
-    - sudo make install
-    - cd ..    
-    - pip install -r requirements.txt -e .
-    - pip install pycodestyle
-
+- wget https://ftp.gnu.org/gnu/parallel/parallel-latest.tar.bz2
+- tar -xvjf parallel*
+- cd parallel*
+- "./configure"
+- make
+- sudo make install
+- cd ..
+- pip install -r requirements.txt -e .
+- pip install pycodestyle
 script:
-    - nosetests -v
-    - pycodestyle qbatch/qbatch.py
+- nosetests -v
+- pycodestyle qbatch/qbatch.py
+deploy:
+  provider: pypi
+  user: gdevenyi
+  password:
+    secure: P4CpJPAtl6Mi0pEJIig2hwWKMgxwvBPkB6PocHU5Jd9Vn22UauCDE4Mdl1S5jDNKqo7Rz2t3QRmGfAeJDN1TgYeuaG9ZGaWDoGaqj6a8AkoPEYTwT8E7mfZYxD3WiyNd6JOzuyXPKpHNoXMznVivAI9KmxoBXoOOkX6gmUAU5Br8HWV3aG4V7NP81xLKVtn6k5i6+TY2ed+hw8PE0MpRO7bu12EOrIcR8Bc/zPF5OzE+tNonDK8pVgBAKtzg6AoS4jl6bd0/eiBsCuZGsiJkPGBBEAwJnX9DjuDvVnXu0Otj7lSB8uTE5nwaEb0XJOmgcwFo87Jct6tFhb6MSzTuexpMbqu907MR1QlIr4k0+T+8zW9te6sX+YQKp88gQlsBXEtGRkaaKHMZR0gfyAzEA8n+aLtnDQeHTc9ENfSH2wTZbHCvLa3XYTDVdB29oZSF1uf94V4vhLwAa+qM0lH2/r+KFWLrFmURX3WxMM/nAOq6EcvHKM3lHBCwY/6pUY55ROMcPCo5jU1U3/ME9IACMI1yYBksCLOV66TA3f9nNLJbevVp17zNwRniU+cU+ZtIWqmIYruT5pIFaD+Su0nw0aYRwl3DyeOxIwWv8IF2Qu+pNm8oMa7re6DR3X4YJoc9GOfWN18IxYBs+JBFN/1RNHSmME8h9yB/MD1kX5t4abA=
+  on:
+    tags: true
