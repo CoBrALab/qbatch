@@ -1,33 +1,33 @@
-sudo: required
-dist: trusty
+dist: xenial
+
 language: python
 python:
-- '2.7'
-- '3.3'
-- '3.4'
-- '3.5'
-- 3.5-dev
-- '3.6'
-- 3.6-dev
-- 3.7-dev
+  - "2.7"
+  - "3.4"
+  - "3.5"
+  - "3.5-dev"  # 3.5 development branch
+  - "3.6"
+  - "3.6-dev"  # 3.6 development branch
+  - "3.7-dev"  # 3.7 development branch
+  # PyPy versions
+  - "pypy3.5"
+
 addons:
-  apt:
-    packages:
-    - gridengine-client
-    - slurm-llnl
+    apt:
+        packages:
+        - gridengine-client
+        - slurm-llnl
+        - parallel
+
 install:
-- wget https://ftp.gnu.org/gnu/parallel/parallel-latest.tar.bz2
-- tar -xvjf parallel*
-- cd parallel*
-- "./configure"
-- make
-- sudo make install
-- cd ..
-- pip install -r requirements.txt -e .
-- pip install pycodestyle
+    - pip install -r requirements.txt
+    - pip install .
+    - pip install pycodestyle
+
 script:
-- nosetests -v
-- pycodestyle qbatch/qbatch.py
+  - nosetests -v
+  - pycodestyle qbatch/qbatch.py
+
 deploy:
   provider: pypi
   user: gdevenyi
