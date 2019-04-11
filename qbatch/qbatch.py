@@ -345,7 +345,7 @@ def qbatchDriver(**kwargs):
     if not kwargs.get('task_list'):
         if command_file[0] == '--':
             if (len(command_file) > 1):
-                task_list = " ".join(command_file[1:])
+                task_list = [" ".join(command_file[1:])]
                 job_name = job_name or command_file[1]
             else:
                 sys.exit("qbatch: error: no command provided as last argument")
