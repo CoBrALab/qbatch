@@ -515,8 +515,9 @@ def qbatchDriver(**kwargs):
             else:
                 script_lines = [
                     header,
-                    'command -v parallel > /dev/null 2>&1 || { echo "GNU parallel'
-                    ' not found in job environment. Exiting."; exit 1; }',
+                    'command -v parallel > /dev/null 2>&1 || { echo "GNU'
+                    ' parallel not found in job environment. Exiting.";'
+                    ' exit 1; }',
                     'CORES={0}'.format(ncores),
                     'export THREADS_PER_COMMAND={0}'.format(
                         compute_threads(kwargs.get('ppj'), ncores)),
@@ -544,9 +545,8 @@ def qbatchDriver(**kwargs):
                                   " but qsub not found")
         which('qstat') or sys.exit("qbatch: error: QBATCH_SYSTEM set to"
                                    " pbs/sge but qstat not found")
-    else:
-        which('parallel') or sys.exit("qbatch: error: QBATCH_SYSTEM set to"
-                                      " local but parallel not found")
+
+    which('parallel') or sys.exit("qbatch: error: gnu-parallel not found")
 
     # execute the job script(s)
     for script in job_scripts:
