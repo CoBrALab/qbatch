@@ -263,9 +263,8 @@ def slurm_find_jobs(patterns):
         patterns = [patterns]
 
     output = subprocess.check_output(
-        ['squeue', '-h', '--user=$USER', '--states=PD,R,S,CF',
-         '--format="%j %A"'],
-        shell=True).decode('utf-8')
+        ['squeue', '-h', '--user={}'.format(os.environ.get("USER")),
+         '--states=PD,R,S,CF', '--format="%j100 %A"']).decode('utf-8')
     if not output:
         print(
             "qbatch: warning: Dependencies specified but no running"
