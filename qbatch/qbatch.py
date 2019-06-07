@@ -480,7 +480,7 @@ def qbatchDriver(**kwargs):
     if use_array:
         script_lines = [
             header,
-            'which parallel > /dev/null 2>&1 || { echo "GNU parallel not '
+            'command -v parallel > /dev/null 2>&1 || { echo "GNU parallel not '
             'found in job environment. Exiting."; exit 1; }',
             'CHUNK_SIZE={0}'.format(chunk_size),
             'CORES={0}'.format(ncores),
@@ -515,7 +515,7 @@ def qbatchDriver(**kwargs):
             else:
                 script_lines = [
                     header,
-                    'which parallel > /dev/null 2>&1 || { echo "GNU parallel'
+                    'command -v parallel > /dev/null 2>&1 || { echo "GNU parallel'
                     ' not found in job environment. Exiting."; exit 1; }',
                     'CORES={0}'.format(ncores),
                     'export THREADS_PER_COMMAND={0}'.format(
