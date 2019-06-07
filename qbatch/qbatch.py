@@ -59,6 +59,7 @@ def _setupVars():
     PBS_HEADER_TEMPLATE = dedent(
         """\
     #!{shell}
+    #PBS -S {shell}
     #PBS -l nodes={nodes}:{nodes_spec}ppn={ppj}
     #PBS -j oe
     #PBS -o {logdir}
@@ -80,6 +81,7 @@ def _setupVars():
     SGE_HEADER_TEMPLATE = dedent(
         """\
     #!{shell}
+    #$ -S {shell}
     #$ {ppj}
     #$ -j y
     #$ -o {logdir}
