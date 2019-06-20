@@ -394,7 +394,7 @@ def qbatchDriver(**kwargs):
         print("qbatch: warning: No jobs to submit, exiting", file=sys.stderr)
         sys.exit()
 
-    if system == 'local':
+    if system == 'local' or chunk_size == 0:
         use_array = False
         num_jobs = 1
         chunk_size = sys.maxsize
@@ -624,7 +624,7 @@ def qbatchParser(args=None):
         "-w", "--walltime",
         help="""Maximum walltime for an array job element or individual job""")
     parser.add_argument(
-        "-c", "--chunksize", default=CHUNKSIZE, type=positive_int,
+        "-c", "--chunksize", default=CHUNKSIZE, type=int,
         help="""Number of commands from the command list that are wrapped into
         each job""")
     parser.add_argument(
