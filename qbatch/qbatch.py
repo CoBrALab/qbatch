@@ -39,7 +39,8 @@ def _setupVars():
     global MEMVARS
     MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
     global MEM
-    MEM = os.environ.get("QBATCH_MEM", "0")
+    MEM = os.environ.get("QBATCH_MEM", None)
+    MEM = None if MEM == 'None' else MEM
     global SCRIPT_FOLDER
     SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
     global QUEUE
@@ -318,7 +319,7 @@ def qbatchDriver(**kwargs):
     ncores = kwargs.get('cores')
     ppj = kwargs.get('ppj')
     job_name = kwargs.get('jobname')
-    mem = kwargs.get('mem') != '0' and kwargs.get('mem') or None
+    mem = None if kwargs.get('mem') == 'None' else kwargs.get('mem')
     queue = kwargs.get('queue')
     verbose = kwargs.get('verbose')
     dry_run = kwargs.get('dryrun')
@@ -625,7 +626,7 @@ def qbatchParser(args=None):
         "--mem", default=MEM,
         help="""Memory required for each job (e.g. --mem 1G).  This value will
         be set on each variable specified in --memvars. To not set any memory
-        requirement, set this to 0""")
+        requirement, set this to \'None\'""")
     parser.add_argument(
         "-q", "--queue", default=QUEUE,
         help="""Name of queue to submit jobs to (defaults to no queue)""")
