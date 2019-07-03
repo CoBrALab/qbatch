@@ -272,7 +272,7 @@ def slurm_find_jobs(patterns):
             "qbatch: warning: Dependencies specified but no running"
             " jobs found",
             file=sys.stderr)
-        return [], []
+        return []
 
     regular_matches = []
     for line in output.split("\n"):
