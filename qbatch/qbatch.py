@@ -21,6 +21,27 @@ from io import open
 from textwrap import dedent
 standard_library.install_aliases()
 
+# Fix python2's environment to return UTF-8 encoded items
+# Stolen from https://stackoverflow.com/a/31004947/4130016
+if sys.version_info[0] < 3:
+    class _EnvironDict(dict):
+        def __getitem__(self, key):
+            return super(_EnvironDict,
+                         self).__getitem__(key.encode("utf-8")).decode("utf-8")
+
+        def __setitem__(self, key, value):
+            return super(_EnvironDict, self).__setitem__(key.encode("utf-8"),
+                                                         value.encode("utf-8"))
+
+        def get(self, key, failobj=None):
+            try:
+                return super(_EnvironDict, self).get(key.encode("utf-8"),
+                                                     failobj).decode("utf-8")
+            except AttributeError:
+                return super(_EnvironDict, self).get(key.encode("utf-8"),
+                                                     failobj)
+    os.environ = _EnvironDict(os.environ)
+
 
 def _setupVars():
     # setup defaults (let environment override)
@@ -33,7 +54,7 @@ def _setupVars():
     global CORES
     CORES = os.environ.get("QBATCH_CORES", PPJ)
     global NODES
-    NODES = os.environ.get("QBATCH_NODES", 1)
+    NODES = os.environ.get("QBATCH_NODES", "1")
     global SGE_PE
     SGE_PE = os.environ.get("QBATCH_SGE_PE", "smp")
     global MEMVARS
