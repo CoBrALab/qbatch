@@ -488,7 +488,7 @@ def qbatchDriver(**kwargs):
         o_memopts = (mem and mem_string) and '--{0}'.format(mem_string) or ''
         o_env = (env_mode == 'batch') and '--export=ALL' or '--export=NONE'
         logfile = use_array and '--output={0}/slurm-{1}-%A_%a.out'.format(
-            logdir, job_name) or '--output={0}/slurm-{1}-%J.out'.format(
+            logdir, job_name) or '--output={0}/slurm-{1}-%j.out'.format(
             logdir, job_name)
         o_queue = queue and '--partition={0}'.format(queue) or ''
 
