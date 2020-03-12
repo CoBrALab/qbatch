@@ -132,7 +132,7 @@ def _setupVars():
     #SBATCH --nodes={nodes}
     #SBATCH {ppj}
     #SBATCH {logfile}
-    #SBATCH --chdir={workdir}
+    #SBATCH -D {workdir}
     #SBATCH --job-name={job_name}
     #SBATCH {o_memopts}
     #SBATCH {o_queue}
