@@ -76,6 +76,11 @@ def _setupVars():
     IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
                        'BASH_FUNC_*', "TMP", "TMPDIR"]
 
+    global CONTAINER_TEMPLATE
+    CONTAINER_TEMPLATE = dedent(
+        """\
+    """)
+
     global PBS_HEADER_TEMPLATE
     PBS_HEADER_TEMPLATE = dedent(
         """\
@@ -394,7 +399,7 @@ def qbatchDriver(**kwargs):
         print("qbatch: warning: No jobs to submit, exiting", file=sys.stderr)
         sys.exit()
 
-    if system == 'local':
+    if system == 'local' or chunk_size == 0:
         use_array = False
         num_jobs = 1
         chunk_size = sys.maxsize
@@ -497,58 +502,43 @@ def qbatchDriver(**kwargs):
     elif system == 'local':
         header = LOCAL_TEMPLATE.format(**vars())
 
+    elif system == 'container':
+        header = CONTAINER_TEMPLATE.format(**vars())
+
     # emit job scripts
     job_scripts = []
     mkdirp(SCRIPT_FOLDER)
-    if use_array:
+    if system == "container":
         script_lines = [
-            header,
-            'command -v parallel > /dev/null 2>&1 || { echo "GNU parallel not '
-            'found in job environment. Exiting."; exit 1; }',
-            'CHUNK_SIZE={0}'.format(chunk_size),
-            'CORES={0}'.format(ncores),
-            'export THREADS_PER_COMMAND={0}'.format(
-                compute_threads(
-                    kwargs.get('ppj'),
-                    ncores)),
-            'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
-            '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -j${CORES} --tag'
-            ' --line-buffer --compress',
-            ''.join(task_list),
-            'EOF']
-
-        scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".array")
-        script = open(scriptfile, 'w', encoding="utf-8")
+            ''.join(task_list)
+        ]
+        scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".joblist")
+        metafile = os.path.join(SCRIPT_FOLDER, job_name + ".meta")
+        script = open(scriptfile, 'w')
+        meta = open(metafile, 'w')
         script.write('\n'.join(script_lines))
-        if footer_commands:
-            script.write('\n')
-            script.write(footer_commands)
+        meta.write(" ".join(sys.argv[1:-1]))
         script.close()
-        job_scripts.append(scriptfile)
+        meta.close()
     else:
-        for chunk in range(num_jobs):
-            scriptfile = os.path.join(
-                SCRIPT_FOLDER, "{0}.{1}".format(job_name, chunk))
-            if len(task_list) == 1:
-                script_lines = [
-                    header,
-                    'export THREADS_PER_COMMAND={0}'.format(
-                        compute_threads(kwargs.get('ppj'), ncores)),
-                    ''.join(task_list)]
-            else:
-                script_lines = [
-                    header,
-                    'command -v parallel > /dev/null 2>&1 || { echo "GNU'
-                    ' parallel not found in job environment. Exiting.";'
-                    ' exit 1; }',
-                    'CORES={0}'.format(ncores),
-                    'export THREADS_PER_COMMAND={0}'.format(
-                        compute_threads(kwargs.get('ppj'), ncores)),
-                    "parallel -j${CORES} --tag --line-buffer"
-                    " --compress << EOF",
-                    ''.join(task_list[chunk * chunk_size:chunk *
-                                      chunk_size + chunk_size]),
-                    'EOF']
+        if use_array:
+            script_lines = [
+                header,
+                'command -v parallel > /dev/null 2>&1 || { echo "GNU parallel '
+                'not found in job environment. Exiting."; exit 1; }',
+                'CHUNK_SIZE={0}'.format(chunk_size),
+                'CORES={0}'.format(ncores),
+                'export THREADS_PER_COMMAND={0}'.format(
+                    compute_threads(
+                        kwargs.get('ppj'),
+                        ncores)),
+                'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
+                '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -j${CORES}'
+                ' --tag --line-buffer --compress',
+                ''.join(task_list),
+                'EOF']
+
+            scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".array")
             script = open(scriptfile, 'w', encoding="utf-8")
             script.write('\n'.join(script_lines))
             if footer_commands:
@@ -556,6 +546,37 @@ def qbatchDriver(**kwargs):
                 script.write(footer_commands)
             script.close()
             job_scripts.append(scriptfile)
+        else:
+            for chunk in range(num_jobs):
+                scriptfile = os.path.join(
+                    SCRIPT_FOLDER, "{0}.{1}".format(job_name, chunk))
+                if len(task_list) == 1:
+                    script_lines = [
+                        header,
+                        'export THREADS_PER_COMMAND={0}'.format(
+                            compute_threads(kwargs.get('ppj'), ncores)),
+                        ''.join(task_list)]
+                else:
+                    script_lines = [
+                        header,
+                        'command -v parallel > /dev/null 2>&1 || { echo "GNU'
+                        ' parallel not found in job environment. Exiting.";'
+                        ' exit 1; }',
+                        'CORES={0}'.format(ncores),
+                        'export THREADS_PER_COMMAND={0}'.format(
+                            compute_threads(kwargs.get('ppj'), ncores)),
+                        "parallel -j${CORES} --tag --line-buffer"
+                        " --compress << EOF",
+                        ''.join(task_list[chunk * chunk_size:chunk *
+                                          chunk_size + chunk_size]),
+                        'EOF']
+                script = open(scriptfile, 'w', encoding="utf-8")
+                script.write('\n'.join(script_lines))
+                if footer_commands:
+                    script.write('\n')
+                    script.write(footer_commands)
+                script.close()
+                job_scripts.append(scriptfile)
 
     # preflight checks
     if SYSTEM == "slurm":
@@ -592,7 +613,7 @@ def qbatchDriver(**kwargs):
             if return_code:
                 sys.exit("qbatch: error: sbatch call " +
                          "returned error code {0}".format(return_code))
-        else:
+        elif system == 'local':
             logfile = "{0}/{1}.log".format(logdir, job_name)
             if verbose:
                 print("Launching jobscript. Output to {0}".format(logfile))
@@ -624,7 +645,7 @@ def qbatchParser(args=None):
         "-w", "--walltime",
         help="""Maximum walltime for an array job element or individual job""")
     parser.add_argument(
-        "-c", "--chunksize", default=CHUNKSIZE, type=positive_int,
+        "-c", "--chunksize", default=CHUNKSIZE, type=int,
         help="""Number of commands from the command list that are wrapped into
         each job""")
     parser.add_argument(
@@ -704,10 +725,13 @@ def qbatchParser(args=None):
         help="Submit individual jobs instead of an array job")
     group.add_argument(
         "-b", "--system", default=SYSTEM, choices=['pbs', 'sge', 'slurm',
-                                                   'local'],
+                                                   'local', 'container'],
         help="""The type of queueing system to use. 'pbs' and 'sge' both make
         calls to qsub to submit jobs. 'slurm' calls sbatch.
-        'local' runs the entire command list (without chunking) locally.""")
+        'local' runs the entire command list (without chunking) locally.
+        'container' creates a joblist and metadata file, to pass commands out
+        of a container to a monitoring process for submission to a
+        batch system.""")
     group.add_argument(
         "--env", choices=['copied', 'batch', 'none'], default='copied',
         help="""Determines how your environment is propagated when your

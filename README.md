@@ -60,7 +60,7 @@ usage: qbatch [-h] [-w WALLTIME] [-c CHUNKSIZE] [-j CORES] [--ppj PPJ]
               [--header HEADER] [--footer FOOTER] [--nodes NODES]
               [--sge-pe SGE_PE] [--memvars MEMVARS]
               [--pbs-nodes-spec PBS_NODES_SPEC] [-i]
-              [-b {pbs,sge,slurm,local}] [--env {copied,batch,none}]
+              [-b {pbs,sge,slurm,local,container}] [--env {copied,batch,none}]
               [--shell SHELL]
               ...
 
@@ -113,8 +113,8 @@ advanced options:
                         matching given glob pattern or job id matching given
                         job id(s) before starting (default: None)
   -d WORKDIR, --workdir WORKDIR
-                        Job working directory (default: /storage/working
-                        /qbatch-gdevenyi)
+                        Job working directory (default:
+                        current working directory)
   --logdir LOGDIR       Directory to save store log files (default:
                         {workdir}/logs)
   -o OPTIONS, --options OPTIONS
@@ -139,11 +139,14 @@ advanced options:
                         job (default: None)
   -i, --individual      Submit individual jobs instead of an array job
                         (default: False)
-  -b {pbs,sge,slurm,local}, --system {pbs,sge,slurm,local}
+  -b {pbs,sge,slurm,local,container}, --system {pbs,sge,slurm,local,container}
                         The type of queueing system to use. 'pbs' and 'sge'
                         both make calls to qsub to submit jobs. 'slurm' calls
                         sbatch. 'local' runs the entire command list (without
-                        chunking) locally. (default: local)
+                        chunking) locally. 'container' creates a joblist and
+                        metadata file, to pass commands out of a container to
+                        a monitoring process for submission to a batch system.
+                        (default: local)
   --env {copied,batch,none}
                         Determines how your environment is propagated when
                         your job runs. "copied" records your environment
