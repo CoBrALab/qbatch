@@ -1,0 +1,19 @@
+# YAML 1.2
+---
+cff-version: "1.1.0"
+abstract: |
+    "Execute shell command lines in parallel on Slurm, S(un|on of) Grid Engine (SGE) and PBS/Torque clusters"
+message: "If you use this software, please cite it as below."
+authors:
+  - 
+    family-names: Devenyi
+    given-names: "Gabriel Allan"
+    orcid: "https://orcid.org/0000-0002-7766-1187"
+  -
+    family-names: Pipitone
+    given-names: Jon
+    orcid: "https://orcid.org/0000-0001-6313-5701"
+title: qbatch
+repository-code: "https://github.com/pipitone/qbatch"
+version: "2.2"
+date-released: 2020-03-12
