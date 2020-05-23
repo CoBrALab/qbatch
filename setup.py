@@ -40,7 +40,6 @@ setup(
         'Topic :: Utilities',
     ],
     install_requires=[
-        "six",
         "future",
     ],
 )

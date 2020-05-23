@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -9,7 +10,11 @@ from builtins import str
 from builtins import range
 import os
 import shutil
-import shlex
+import sys
+if sys.version_info < (3, 0):
+    import ushlex as shlex
+else:
+    import shlex
 from subprocess import Popen, PIPE, STDOUT
 import tempfile
 import sys
@@ -190,6 +195,21 @@ def test_run_qbatch_slurm_dryrun_array_piped_chunks():
 def test_run_qbatch_local_piped_commands():
     cmds = "\n".join(["echo hello"] * 24)
     p = command_pipe('qbatch -N test_run_qbatch_local_piped_commands --env none -j2 -b local -')
+    out, _ = p.communicate(cmds.encode('utf-8'))
+
+    expected, _ = command_pipe(
+        'parallel --tag --line-buffer -j2').communicate(cmds.encode('utf-8'))
+
+    print(out)
+
+    assert p.returncode == 0, \
+        "Return code = {0}".format(p.returncode)
+    assert set(out.splitlines()) == set(expected.splitlines()), \
+        "Expected {0} but got {1}".format(expected, out)
+
+def test_run_qbatch_local_piped_commands_utf8():
+    cmds = "\n".join(["echo hëllo"] * 24)
+    p = command_pipe('qbatch -N tëst_run_qbatch_local_piped_commands --env none -j2 -b local -')
     out, _ = p.communicate(cmds.encode('utf-8'))
 
     expected, _ = command_pipe(
