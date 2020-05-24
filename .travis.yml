@@ -5,12 +5,13 @@ python:
   - "2.7"
   - "3.4"
   - "3.5"
-  - "3.5-dev"  # 3.5 development branch
   - "3.6"
-  - "3.6-dev"  # 3.6 development branch
-  - "3.7-dev"  # 3.7 development branch
+  - "3.7"
+  - "3.8"
+  - "3.9-dev"
   # PyPy versions
-  - "pypy3.5"
+  - pypy
+  - pypy3
 
 addons:
     apt:
@@ -20,7 +21,8 @@ addons:
         - parallel
 
 install:
-    - pip install -r requirements.txt
+    - export PYTHONIOENCODING=UTF8
+    - pip install -r requirements-testing.txt
     - pip install .
     - pip install pycodestyle
 

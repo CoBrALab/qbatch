@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='qbatch',
-    version='2.2',
+    version='2.2.1',
     description='Execute shell command lines in parallel on Slurm, '
     'S(un|on of) Grid Engine (SGE) and PBS/Torque clusters',
     author="Jon Pipitone, Gabriel A. Devenyi",
@@ -40,7 +40,6 @@ setup(
         'Topic :: Utilities',
     ],
     install_requires=[
-        "six",
         "future",
     ],
 )

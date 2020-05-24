@@ -1,12 +1,8 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from future import standard_library
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 from builtins import *
-from builtins import str
-from builtins import range
+from future import standard_library
 import argparse
 import math
 import os
@@ -167,15 +163,13 @@ def run_command(command, logfile=None):
     if logfile:
         filehandle = open(logfile, 'w', encoding="utf-8")
     while True:
-        output = process.stdout.readline()
-        if output.decode('UTF-8') == '' and process.poll() is not None:
+        output = process.stdout.readline().decode('utf-8').strip()
+        if output == '' and process.poll() is not None:
             break
         if output and logfile:
-            print(output.decode('UTF-8').strip())
-            filehandle.write(output.decode('UTF-8').strip())
+            filehandle.write(output)
             filehandle.write("\n")
-        elif output:
-            print(output.decode('UTF-8').strip())
+        print(output)
     rc = process.poll()
     if logfile:
         filehandle.close()
@@ -194,6 +188,16 @@ def mkdirp(*p):
         else:
             raise
     return path
+
+
+def unicode_str(string):
+    """Converts a bytestring to a unicode string"""
+
+    try:
+        value = string.decode('utf-8')
+    except AttributeError:
+        value = string
+    return value
 
 
 def positive_int(string):
@@ -377,7 +381,9 @@ def qbatchDriver(**kwargs):
             else:
                 sys.exit("qbatch: error: no command provided as last argument")
         elif command_file[0] == '-':
-            task_list = sys.stdin.readlines()
+            with open(getattr(sys.stdin, 'buffer', sys.stdin).fileno(),
+                      encoding='utf8') as reader:
+                task_list = reader.readlines()
             job_name = job_name or 'STDIN'
         else:
             task_list = []
@@ -514,8 +520,8 @@ def qbatchDriver(**kwargs):
         ]
         scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".joblist")
         metafile = os.path.join(SCRIPT_FOLDER, job_name + ".meta")
-        script = open(scriptfile, 'w')
-        meta = open(metafile, 'w')
+        script = open(scriptfile, 'w', encoding="utf-8")
+        meta = open(metafile, 'w', encoding="utf-8")
         script.write('\n'.join(script_lines))
         meta.write(" ".join(sys.argv[1:-1]))
         script.close()
@@ -661,7 +667,7 @@ def qbatchParser(args=None):
         if -j is larger than --ppj
         (useful to make use of hyper-threading on some systems)""")
     parser.add_argument(
-        "-N", "--jobname", action="store",
+        "-N", "--jobname", action="store", type=unicode_str,
         help="""Set job name (defaults to name of command file, or STDIN)""")
     parser.add_argument(
         "--mem", default=MEM,
