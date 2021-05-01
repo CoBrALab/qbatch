@@ -397,6 +397,7 @@ def qbatchDriver(**kwargs):
                     sys.exit("qbatch: error: command_file {0}".format(file) +
                              " does not exist or cannot be read")
     else:
+        task_list = kwargs.get('task_list')
         job_name = job_name or 'qbatchDriver'
 
     # compute the number of jobs needed. This will be the number of elements in
