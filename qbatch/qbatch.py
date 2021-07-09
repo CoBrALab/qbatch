@@ -369,6 +369,15 @@ def qbatchDriver(**kwargs):
     system = kwargs.get('system')
     env_mode = kwargs.get('env')
     shell = kwargs.get('shell')
+    block = kwargs.get('block')
+
+    if block:
+        if system == 'sge':
+            options.append('sync -y')
+        elif system == 'pbs':
+            options.append('-Wblock=true')
+        elif system == 'slurm':
+            options.append('--wait')
 
     mkdirp(logdir)
 
@@ -750,6 +759,10 @@ def qbatchParser(args=None):
         "--shell", default=SHELL,
         help="""Shell to use for spawning jobs
         and launching single commands""")
+    group.add_argument(
+        "--block", action="store_true",
+        help="""For SGE, PBS and SLURM, blocks execution until jobs are finished.
+        'sync -y' is called for SGE, '-Wblock=true' for PBS and '--wait' for SLURM.""")
 
     args = parser.parse_args(args)
     if not args.command_file:
