@@ -481,7 +481,7 @@ def qbatchDriver(**kwargs):
         o_env = (env_mode == 'batch') and '-V' or ''
         o_queue = queue and '-q {0}'.format(queue) or ''
         if block:
-            o_block = ' sync -y'
+            o_block = ' -sync y'
 
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
