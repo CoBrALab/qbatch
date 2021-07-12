@@ -464,8 +464,7 @@ def qbatchDriver(**kwargs):
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
         o_env = (env_mode == 'batch') and '-V' or ''
         o_queue = queue and '-q {0}'.format(queue) or ''
-        if block:
-            o_block = ' -Wblock=true'
+        o_block = block and " -Wblock=true" or ''
 
         header = PBS_HEADER_TEMPLATE.format(**vars())
 
@@ -480,8 +479,7 @@ def qbatchDriver(**kwargs):
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
         o_env = (env_mode == 'batch') and '-V' or ''
         o_queue = queue and '-q {0}'.format(queue) or ''
-        if block:
-            o_block = ' -sync y'
+        o_block = block and " -sync y" or ''
 
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
@@ -511,8 +509,7 @@ def qbatchDriver(**kwargs):
             logdir, job_name) or '--output={0}/slurm-{1}-%j.out'.format(
             logdir, job_name)
         o_queue = queue and '--partition={0}'.format(queue) or ''
-        if block:
-            o_block = ' --wait'
+        o_block = block and " --wait" or ''
 
         header = SLURM_HEADER_TEMPLATE.format(**vars())
 
