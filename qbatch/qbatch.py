@@ -94,6 +94,7 @@ def _setupVars():
     #PBS {o_dependencies}
     #PBS {o_options}
     #PBS {o_env}
+    #PBS {o_block}
     {env}
     {header_commands}
     ARRAY_IND=$PBS_ARRAYID
@@ -116,6 +117,7 @@ def _setupVars():
     #$ {o_dependencies}
     #$ {o_options}
     #$ {o_env}
+    #$ {o_block}
     {env}
     {header_commands}
     ARRAY_IND=$SGE_TASK_ID
@@ -137,6 +139,7 @@ def _setupVars():
     #SBATCH {o_dependencies}
     #SBATCH {o_options}
     #SBATCH {o_env}
+    #SBATCH {o_block}
     {env}
     {header_commands}
     ARRAY_IND=$SLURM_ARRAY_TASK_ID
@@ -371,14 +374,6 @@ def qbatchDriver(**kwargs):
     shell = kwargs.get('shell')
     block = kwargs.get('block')
 
-    if block:
-        if system == 'sge':
-            options.append('sync -y')
-        elif system == 'pbs':
-            options.append('-Wblock=true')
-        elif system == 'slurm':
-            options.append('--wait')
-
     mkdirp(logdir)
 
     # read in commands
@@ -469,6 +464,8 @@ def qbatchDriver(**kwargs):
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
         o_env = (env_mode == 'batch') and '-V' or ''
         o_queue = queue and '-q {0}'.format(queue) or ''
+        if block:
+            o_block = ' -Wblock=true'
 
         header = PBS_HEADER_TEMPLATE.format(**vars())
 
@@ -483,6 +480,8 @@ def qbatchDriver(**kwargs):
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
         o_env = (env_mode == 'batch') and '-V' or ''
         o_queue = queue and '-q {0}'.format(queue) or ''
+        if block:
+            o_block = ' sync -y'
 
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
@@ -512,6 +511,8 @@ def qbatchDriver(**kwargs):
             logdir, job_name) or '--output={0}/slurm-{1}-%j.out'.format(
             logdir, job_name)
         o_queue = queue and '--partition={0}'.format(queue) or ''
+        if block:
+            o_block = ' --wait'
 
         header = SLURM_HEADER_TEMPLATE.format(**vars())
 
@@ -761,8 +762,7 @@ def qbatchParser(args=None):
         and launching single commands""")
     group.add_argument(
         "--block", action="store_true",
-        help="""For SGE, PBS and SLURM, blocks execution until jobs are finished.
-        'sync -y' is called for SGE, '-Wblock=true' for PBS and '--wait' for SLURM.""")
+        help="""For SGE, PBS and SLURM, blocks execution until jobs are finished.""")
 
     args = parser.parse_args(args)
     if not args.command_file:
