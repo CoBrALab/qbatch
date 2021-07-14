@@ -759,7 +759,8 @@ def qbatchParser(args=None):
         and launching single commands""")
     group.add_argument(
         "--block", action="store_true",
-        help="""For SGE, PBS and SLURM, blocks execution until jobs are finished.""")
+        help="""For SGE, PBS and SLURM, blocks execution until jobs are
+        finished.""")
 
     args = parser.parse_args(args)
     if not args.command_file:
