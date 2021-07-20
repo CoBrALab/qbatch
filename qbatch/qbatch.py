@@ -549,7 +549,7 @@ def qbatchDriver(**kwargs):
                         ncores)),
                 'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
                 '+$(( ${CHUNK_SIZE} - 1 ))p" << EOF | parallel -j${CORES}'
-                ' --tag --line-buffer --compress',
+                ' --tag --lb',
                 ''.join(task_list),
                 'EOF']
 
@@ -580,8 +580,7 @@ def qbatchDriver(**kwargs):
                         'CORES={0}'.format(ncores),
                         'export THREADS_PER_COMMAND={0}'.format(
                             compute_threads(kwargs.get('ppj'), ncores)),
-                        "parallel -j${CORES} --tag --line-buffer"
-                        " --compress << EOF",
+                        "parallel -j${CORES} --tag --lb << EOF",
                         ''.join(task_list[chunk * chunk_size:chunk *
                                           chunk_size + chunk_size]),
                         'EOF']
