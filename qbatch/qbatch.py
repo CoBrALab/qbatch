@@ -404,6 +404,9 @@ def qbatchDriver(**kwargs):
         task_list = kwargs.get('task_list')
         job_name = job_name or 'qbatchDriver'
 
+    # Drop commented out lines
+    task_list[:] = [x for x in task_list if not x.startswith('#')]
+
     # compute the number of jobs needed. This will be the number of elements in
     # the array job
     if len(task_list) == 0:
