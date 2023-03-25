@@ -346,33 +346,23 @@ def qbatchDriver(**kwargs):
     else:
         pass
     command_file = kwargs.get('command_file')
-    walltime = kwargs.get('walltime')
     chunk_size = kwargs.get('chunksize')
     ncores = kwargs.get('cores')
     ppj = kwargs.get('ppj')
     job_name = kwargs.get('jobname')
     mem = kwargs.get('mem') != '0' and kwargs.get('mem') or None
-    queue = kwargs.get('queue')
     verbose = kwargs.get('verbose')
     dry_run = kwargs.get('dryrun')
     depend_pattern = kwargs.get('depend')
     workdir = kwargs.get('workdir')
     logdir = kwargs.get('logdir').format(workdir=workdir)
-    options = kwargs.get('options')
-    header_commands = (kwargs.get('header') and
-                       '\n'.join(kwargs.get('header')) or '')
     footer_commands = (kwargs.get('footer') and
                        '\n'.join(kwargs.get('footer')) or '')
-    nodes = kwargs.get('nodes')
     sge_pe = kwargs.get('sge_pe')
     memvars = kwargs.get('memvars').split(',')
-    nodes_spec = (kwargs.get('pbs_nodes_spec') and
-                  ':'.join(kwargs.get('pbs_nodes_spec')) + ':') or ''
     use_array = not kwargs.get('individual')
     system = kwargs.get('system')
     env_mode = kwargs.get('env')
-    shell = kwargs.get('shell')
-    block = kwargs.get('block')
 
     mkdirp(logdir)
 
@@ -448,8 +438,6 @@ def qbatchDriver(**kwargs):
                   " Torque 6.0.2 and above. You may get qsub error"
                   " code 168.", file=sys.stderr)
 
-        o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
-        o_walltime = walltime and "-l walltime={0}".format(walltime) or ''
         o_dependencies = '{0}'.format(
             '-W depend=' if (matching_array_jobids or matching_regular_jobids)
             else '')
@@ -459,40 +447,17 @@ def qbatchDriver(**kwargs):
             ',' if (matching_array_jobids and matching_regular_jobids) else '')
         o_dependencies += '{0}'.format(('afterokarray:' + ':'.join(
             matching_array_jobids)) if matching_array_jobids else '')
-        o_options = '\n#PBS '.join(options)
-        mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
-        o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
-        o_env = (env_mode == 'batch') and '-V' or ''
-        o_queue = queue and '-q {0}'.format(queue) or ''
-        o_block = block and " -Wblock=true" or ''
 
         header = PBS_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'sge':
         ppj = (ppj > 1) and '-pe {0} {1}'.format(sge_pe, ppj) or ''
-        o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
-        o_walltime = walltime and "-l h_rt={0}".format(walltime) or ''
         o_dependencies = depend_pattern and '-hold_jid \'' + \
             '\',\''.join(depend_pattern) + '\'' or ''
-        o_options = '\n#$ '.join(options)
-        mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
-        o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
-        o_env = (env_mode == 'batch') and '-V' or ''
-        o_queue = queue and '-q {0}'.format(queue) or ''
-        o_block = block and " -sync y" or ''
-
         header = SGE_HEADER_TEMPLATE.format(**vars())
 
     elif system == 'slurm':
         ppj = (ppj > 1) and '--cpus-per-task={0}'.format(ppj) or ''
-        o_array = use_array and '--array=1-{0}'.format(num_jobs) or ''
-        if (walltime and walltime.find(":") > 0):
-            o_walltime = "--time={0}".format(walltime)
-        elif walltime:
-            o_walltime = "--time={:1.0f}".format(
-                int(walltime) / 60)
-        else:
-            o_walltime = ''
         try:
             matching_regular_jobids = slurm_find_jobs(
                 depend_pattern)
@@ -501,15 +466,9 @@ def qbatchDriver(**kwargs):
         o_dependencies = '{0}'.format(
             '--dependency=afterok:' + ':'.join(matching_regular_jobids)
             if (matching_regular_jobids) else '')
-        o_options = '\n#SBATCH '.join(options)
-        mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
-        o_memopts = (mem and mem_string) and '--{0}'.format(mem_string) or ''
-        o_env = (env_mode == 'batch') and '--export=ALL' or '--export=NONE'
         logfile = use_array and '--output={0}/slurm-{1}-%A_%a.out'.format(
             logdir, job_name) or '--output={0}/slurm-{1}-%j.out'.format(
             logdir, job_name)
-        o_queue = queue and '--partition={0}'.format(queue) or ''
-        o_block = block and " --wait" or ''
 
         header = SLURM_HEADER_TEMPLATE.format(**vars())
 
