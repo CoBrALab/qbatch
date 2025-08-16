@@ -6,7 +6,7 @@ from future import standard_library
 import argparse
 import math
 import os
-import pkg_resources
+from importlib.metadata import version
 import re
 import subprocess
 import stat
@@ -644,7 +644,7 @@ def qbatchDriver(**kwargs):
 
 def qbatchParser(args=None):
     _setupVars()
-    __version__ = pkg_resources.require("qbatch")[0].version
+    __version__ = version("qbatch")
 
     parser = argparse.ArgumentParser(
         description="""Submits a list of commands to a queueing system.
