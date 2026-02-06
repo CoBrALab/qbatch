@@ -57,9 +57,9 @@ testing = [
 qbatch = "qbatch:qbatchParser"
 
 [project.urls]
-Homepage = "https://github.com/pipitone/qbatch"
-Repository = "https://github.com/pipitone/qbatch"
-Issues = "https://github.com/pipitone/qbatch/issues"
+Homepage = "https://github.com/CoBrALab/qbatch"
+Repository = "https://github.com/CoBrALab/qbatch"
+Issues = "https://github.com/CoBrALab/qbatch/issues"
 
 [dependency-groups]
 dev = []

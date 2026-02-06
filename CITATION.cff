@@ -14,6 +14,6 @@ authors:
     given-names: Jon
     orcid: "https://orcid.org/0000-0001-6313-5701"
 title: qbatch
-repository-code: "https://github.com/pipitone/qbatch"
+repository-code: "https://github.com/CoBrALab/qbatch"
 version: "2.2"
 date-released: 2020-03-12
