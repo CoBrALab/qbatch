@@ -373,6 +373,7 @@ def qbatchDriver(**kwargs):
     env_mode = kwargs.get('env')
     shell = kwargs.get('shell')
     block = kwargs.get('block')
+    script_folder = kwargs.get('script_folder', SCRIPT_FOLDER)
 
     mkdirp(logdir)
 
@@ -524,13 +525,13 @@ def qbatchDriver(**kwargs):
 
     # emit job scripts
     job_scripts = []
-    mkdirp(SCRIPT_FOLDER)
+    mkdirp(script_folder)
     if system == "container":
         script_lines = [
             ''.join(task_list)
         ]
-        scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".joblist")
-        metafile = os.path.join(SCRIPT_FOLDER, job_name + ".meta")
+        scriptfile = os.path.join(script_folder, job_name + ".joblist")
+        metafile = os.path.join(script_folder, job_name + ".meta")
         script = open(scriptfile, 'w', encoding="utf-8")
         meta = open(metafile, 'w', encoding="utf-8")
         script.write('\n'.join(script_lines))
@@ -555,7 +556,7 @@ def qbatchDriver(**kwargs):
                 ''.join(task_list),
                 'EOF']
 
-            scriptfile = os.path.join(SCRIPT_FOLDER, job_name + ".array")
+            scriptfile = os.path.join(script_folder, job_name + ".array")
             script = open(scriptfile, 'w', encoding="utf-8")
             script.write('\n'.join(script_lines))
             if footer_commands:
@@ -566,7 +567,7 @@ def qbatchDriver(**kwargs):
         else:
             for chunk in range(num_jobs):
                 scriptfile = os.path.join(
-                    SCRIPT_FOLDER, "{0}.{1}".format(job_name, chunk))
+                    script_folder, "{0}.{1}".format(job_name, chunk))
                 if len(task_list) == 1:
                     script_lines = [
                         header,
@@ -764,6 +765,9 @@ def qbatchParser(args=None):
         "--block", action="store_true",
         help="""For SGE, PBS and SLURM, blocks execution until jobs are
         finished.""")
+    group.add_argument(
+        "--script-folder", default=SCRIPT_FOLDER,
+        help="""Directory where job scripts are stored""")
 
     args = parser.parse_args(args)
     if not args.command_file:
