@@ -47,12 +47,6 @@ classifiers = [
 ]
 dependencies = []
 
-[project.optional-dependencies]
-testing = [
-    "nose>=1.0",
-    "ushlex",
-]
-
 [project.scripts]
 qbatch = "qbatch:qbatchParser"
 
