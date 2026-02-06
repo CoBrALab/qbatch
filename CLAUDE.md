@@ -11,22 +11,22 @@ qbatch is a command-line tool and Python library for executing shell commands in
 ### Testing
 ```bash
 # Run all tests
-nosetests test/test_qbatch.py
+pytest test/test_qbatch.py
 
 # Run a specific test
-nosetests test/test_qbatch.py:test_run_qbatch_local_piped_commands
+pytest test/test_qbatch.py::test_run_qbatch_local_piped_commands
 
 # Run with verbose output
-nosetests -v test/test_qbatch.py
+pytest -v test/test_qbatch.py
 ```
 
 ### Building
 ```bash
-# Build source distribution and wheel
-python setup.py sdist bdist_wheel
+# Build source distribution and wheel using uv
+uv build
 
 # Build for local testing
-pip install -e .
+uv pip install -e .
 ```
 
 ### Installation
@@ -34,8 +34,8 @@ pip install -e .
 # Install from source
 pip install .
 
-# Install with testing dependencies
-pip install -r requirements-testing.txt
+# Install with uv
+uv pip install .
 ```
 
 ## Architecture
@@ -100,24 +100,15 @@ All defaults can be overridden via environment variables (prefix `QBATCH_`):
 
 ## Testing Notes
 
-Tests use `nosetests` and rely on:
+Tests use `pytest` and rely on:
 - Setting `QBATCH_SCRIPT_FOLDER` to a temp directory
 - Testing dry-run mode (`-n`) to avoid actual job submission
 - Simulating scheduler environment variables (e.g., `SGE_TASK_ID`, `PBS_ARRAYID`)
-- Using Python 2/3 compatibility via `future` library
 
 Tests are integration-style, generating actual job scripts and verifying they produce expected output when executed.
 
-## Python 2/3 Compatibility
-
-The codebase maintains Python 2.7+ compatibility using:
-- `future` library for standard library aliases
-- Custom `_EnvironDict` class for UTF-8 environment variable handling on Python 2
-- `io.open()` for UTF-8 file handling
-- Careful string/unicode handling
-
 ## Version Management
 
-- Version is defined in `setup.py` (line 14)
-- Uses `importlib.metadata` for version retrieval at runtime (line 9)
-- GitHub Actions workflow publishes releases to PyPI when a release is created
+- Version is defined in `pyproject.toml` (line 7)
+- Uses `importlib.metadata` for version retrieval at runtime
+- GitHub Actions workflow uses `uv` to build and publish releases to PyPI when a release is created
