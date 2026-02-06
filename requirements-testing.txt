@@ -1,3 +1,0 @@
-nose>=1.0
-future
-ushlex

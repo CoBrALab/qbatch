@@ -1,45 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from future import standard_library
-from builtins import *
-from builtins import str
-from builtins import range
 import os
 import shutil
 import sys
-if sys.version_info < (3, 0):
-    import ushlex as shlex
-else:
-    import shlex
+import shlex
 from subprocess import Popen, PIPE, STDOUT
 import tempfile
-import sys
-standard_library.install_aliases()
-
-# Fix python2's environment to return UTF-8 encoded items
-# Stolen from https://stackoverflow.com/a/31004947/4130016
-if sys.version_info[0] < 3:
-    class _EnvironDict(dict):
-        def __getitem__(self, key):
-            return super(_EnvironDict,
-                         self).__getitem__(key.encode("utf-8")).decode("utf-8")
-
-        def __setitem__(self, key, value):
-            return super(_EnvironDict, self).__setitem__(key.encode("utf-8"),
-                                                         value.encode("utf-8"))
-
-        def get(self, key, failobj=None):
-            try:
-                return super(_EnvironDict, self).get(key.encode("utf-8"),
-                                                     failobj).decode("utf-8")
-            except AttributeError:
-                return super(_EnvironDict, self).get(key.encode("utf-8"),
-                                                     failobj)
-    os.environ = _EnvironDict(os.environ)
 
 tempdir = None
 

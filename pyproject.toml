@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qbatch"
+version = "2.3.1"
+description = "Execute shell command lines in parallel on Slurm, SGE and PBS/Torque clusters"
+readme = "README.md"
+license = { text = "Unlicense" }
+requires-python = ">=3.8"
+authors = [
+    { name = "Jon Pipitone", email = "jon@pipitone.ca" },
+    { name = "Gabriel A. Devenyi", email = "gdevenyi@gmail.com" },
+]
+maintainers = [
+    { name = "Jon Pipitone", email = "jon@pipitone.ca" },
+    { name = "Gabriel A. Devenyi", email = "gdevenyi@gmail.com" },
+]
+keywords = [
+    "hpc",
+    "batch",
+    "cluster",
+    "slurm",
+    "sge",
+    "pbs",
+    "torque",
+    "parallel",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: Public Domain",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Clustering",
+    "Topic :: System :: Distributed Computing",
+    "Topic :: Utilities",
+]
+dependencies = []
+
+[project.optional-dependencies]
+testing = [
+    "nose>=1.0",
+    "ushlex",
+]
+
+[project.scripts]
+qbatch = "qbatch:qbatchParser"
+
+[project.urls]
+Homepage = "https://github.com/pipitone/qbatch"
+Repository = "https://github.com/pipitone/qbatch"
+Issues = "https://github.com/pipitone/qbatch/issues"
+
+[dependency-groups]
+dev = []
+testing = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["qbatch"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/qbatch",
+    "/test",
+    "/README.md",
+    "/LICENSE",
+    "/CLAUDE.md",
+]
