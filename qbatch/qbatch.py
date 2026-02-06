@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *
-from future import standard_library
 import argparse
 import math
 import os
@@ -15,28 +11,6 @@ import fnmatch
 import errno
 from io import open
 from textwrap import dedent
-standard_library.install_aliases()
-
-# Fix python2's environment to return UTF-8 encoded items
-# Stolen from https://stackoverflow.com/a/31004947/4130016
-if sys.version_info[0] < 3:
-    class _EnvironDict(dict):
-        def __getitem__(self, key):
-            return super(_EnvironDict,
-                         self).__getitem__(key.encode("utf-8")).decode("utf-8")
-
-        def __setitem__(self, key, value):
-            return super(_EnvironDict, self).__setitem__(key.encode("utf-8"),
-                                                         value.encode("utf-8"))
-
-        def get(self, key, failobj=None):
-            try:
-                return super(_EnvironDict, self).get(key.encode("utf-8"),
-                                                     failobj).decode("utf-8")
-            except AttributeError:
-                return super(_EnvironDict, self).get(key.encode("utf-8"),
-                                                     failobj)
-    os.environ = _EnvironDict(os.environ)
 
 
 def _setupVars():
