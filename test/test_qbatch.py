@@ -41,7 +41,7 @@ def test_qbatch_help_no_queue_binary():
     If QBATCH_SYSTEM is not 'local', using --help should still work.
 
     This tests for the following issue:
-        https://github.com/pipitone/qbatch/issues/177
+        https://github.com/CoBrALab/qbatch/issues/177
     """
 
     myenv['QBATCH_SYSTEM'] = 'slurm'
