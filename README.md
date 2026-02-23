@@ -2,8 +2,6 @@
 Execute shell command lines in parallel on Slurm, S(on) of Grid Engine (SGE),
 PBS/Torque clusters
 
-[![Travis CI build status](https://travis-ci.org/CoBrALab/qbatch.svg?branch=master)](https://travis-ci.org/CoBrALab/qbatch)
-
 qbatch is a tool for executing commands in parallel across a compute cluster.
 It takes as input a list of **commands** (shell command lines or executable
 scripts) in a file or piped to ``qbatch``. The list of commands are divided into
