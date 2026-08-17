@@ -13,9 +13,11 @@ with no cluster capability via gnu-paralel.
 ``qbatch`` can also be used within python using the ``qbatch.qbatchParser`` and
 ``qbatch.qbatchDriver`` functions. ``qbatchParser`` will accept a list of
 command line options identical to the shell interface, parse, and submit jobs.
-The ``qbatchDriver`` interface will accept key-value pairs
-corresponding to the outputs of the argument parser, and additionally, the
-``task_list`` option, providing a list of strings of commands to run.
+``qbatchDriver`` accepts a ``qbatch.JobSpec``, which describes everything
+needed to generate and submit jobs. Every field has a default, taken from the
+``QBATCH_*`` environment variables where one applies, so you only set what you
+care about. The ``task_list`` field provides a list of strings of commands to
+run.
 
 ## Installation
 
@@ -193,6 +195,43 @@ A python script example:
 # Submit jobs to a cluster using the QBATCH_* environment defaults
 import qbatch
 task_list = ['echo hello', 'echo hello2']
-qbatch.qbatchDriver(task_list = task_list)
-
+qbatch.qbatchDriver(qbatch.JobSpec(task_list=task_list))
 ```
+
+Any field can be set on the spec:
+```python
+import qbatch
+spec = qbatch.JobSpec(
+    task_list=['echo hello', 'echo hello2'],
+    scheduler='slurm',
+    job_name='greetings',
+    chunk_size=2,
+    cores=2,
+    walltime='1:00:00',
+)
+qbatch.qbatchDriver(spec)
+```
+
+## Migrating to 3.0
+
+``qbatchDriver`` used to accept loose key-value pairs. It now takes a single
+``JobSpec``. If you were calling it with the argument parser's option names,
+``JobSpec.from_kwargs`` accepts those names unchanged, so the migration is one
+line:
+
+```python
+# before (2.x)
+qbatch.qbatchDriver(**options)
+
+# after (3.0)
+qbatch.qbatchDriver(qbatch.JobSpec.from_kwargs(**options))
+```
+
+Four options are spelled differently as spec fields: ``jobname`` is
+``job_name``, ``dryrun`` is ``dry_run``, ``chunksize`` is ``chunk_size``, and
+``system`` is ``scheduler``. ``from_kwargs`` translates all four for you, and
+rejects names it does not recognise instead of silently ignoring them.
+
+Errors are now raised as ``qbatch.QbatchError`` rather than exiting the
+process, so a python caller can catch them. The command line behaviour is
+unchanged.
