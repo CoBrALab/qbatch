@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import os
 import shlex
 import shutil
@@ -38,7 +37,7 @@ def command_pipe(command):
 
 def test_qbatch_help():
     p = command_pipe("qbatch --help")
-    out, _ = p.communicate(b"")
+    _out, _ = p.communicate(b"")
     assert p.returncode == 0, p.returncode
 
 
@@ -54,7 +53,7 @@ def test_qbatch_help_no_queue_binary():
     myenv["QBATCH_SYSTEM"] = "slurm"
     try:
         p = command_pipe("qbatch --help")
-        out, _ = p.communicate(b"")
+        _out, _ = p.communicate(b"")
         assert p.returncode == 0, p.returncode
     finally:
         del myenv["QBATCH_SYSTEM"]
@@ -62,7 +61,7 @@ def test_qbatch_help_no_queue_binary():
 
 def test_python_import():
     p = command_pipe('python -c "from qbatch import qbatchParser"')
-    out, _ = p.communicate(b"")
+    _out, _ = p.communicate(b"")
 
     assert p.returncode == 0
 
@@ -72,15 +71,15 @@ def test_python_help_launch():
         """python -c "from qbatch import qbatchParser; """
         + """qbatchParser(['-h'])" """
     )
-    out, _ = p.communicate(b"")
+    _out, _ = p.communicate(b"")
 
     assert p.returncode == 0
 
 
 def test_run_qbatch_dryrun_single_output_exists():
-    cmds = "\n".join(["echo hello"])
+    cmds = "echo hello"
     p = command_pipe("qbatch -N test_run_qbatch_dryrun_single_output_exists -n -")
-    out, _ = p.communicate(cmds.encode("utf-8"))
+    _out, _ = p.communicate(cmds.encode("utf-8"))
 
     assert p.returncode == 0
     assert os.path.exists(

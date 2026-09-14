@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """The job spec: everything qbatch needs to generate and submit jobs.
 
 Defaults come from the QBATCH_* environment variables and are read every
@@ -6,10 +5,11 @@ time a spec is constructed, so two specs built under different
 environments never share state.
 """
 
+from __future__ import annotations
+
 import os
 import re
 from dataclasses import dataclass, field, fields
-from typing import Dict, List, Optional, Union
 
 from qbatch.errors import QbatchError
 from qbatch.schedulers import REGISTRY
@@ -53,13 +53,13 @@ class JobSpec:
     """Everything needed to generate and submit a set of jobs."""
 
     # what to run
-    task_list: Optional[List[str]] = None
-    command_file: Optional[List[str]] = None
-    job_name: Optional[str] = None
+    task_list: list[str] | None = None
+    command_file: list[str] | None = None
+    job_name: str | None = None
 
     # how it is divided into chunks
     chunk_size: int = field(default_factory=_env_chunk_size)
-    cores: Union[int, str] = field(default_factory=_env_cores)
+    cores: int | str = field(default_factory=_env_cores)
     ppj: int = field(default_factory=_env_ppj)
     individual: bool = False
 
@@ -67,26 +67,26 @@ class JobSpec:
     scheduler: str = field(
         default_factory=lambda: os.environ.get("QBATCH_SYSTEM", "local")
     )
-    queue: Optional[str] = field(default_factory=lambda: os.environ.get("QBATCH_QUEUE"))
+    queue: str | None = field(default_factory=lambda: os.environ.get("QBATCH_QUEUE"))
     nodes: int = field(default_factory=lambda: int(os.environ.get("QBATCH_NODES", "1")))
     sge_pe: str = field(default_factory=lambda: os.environ.get("QBATCH_SGE_PE", "smp"))
-    pbs_nodes_spec: Optional[List[str]] = None
-    walltime: Optional[str] = None
+    pbs_nodes_spec: list[str] | None = None
+    walltime: str | None = None
     mem: str = field(default_factory=lambda: os.environ.get("QBATCH_MEM", "0"))
     memvars: str = field(
         default_factory=lambda: os.environ.get("QBATCH_MEMVARS", "mem")
     )
-    options: List[str] = field(default_factory=_env_options)
+    options: list[str] = field(default_factory=_env_options)
     block: bool = False
 
     # what goes into the job script
     shell: str = field(
         default_factory=lambda: os.environ.get("QBATCH_SHELL", "/bin/sh")
     )
-    header: Optional[List[str]] = None
-    footer: Optional[List[str]] = None
+    header: list[str] | None = None
+    footer: list[str] | None = None
     env: str = "copied"
-    environ: Dict[str, str] = field(default_factory=dict)
+    environ: dict[str, str] = field(default_factory=dict)
     container_meta: str = ""
 
     # where things are written
@@ -97,9 +97,9 @@ class JobSpec:
     )
 
     # dependencies: patterns, and the job ids they resolve to
-    depend: Optional[List[str]] = None
-    depend_array_ids: List[str] = field(default_factory=list)
-    depend_job_ids: List[str] = field(default_factory=list)
+    depend: list[str] | None = None
+    depend_array_ids: list[str] = field(default_factory=list)
+    depend_job_ids: list[str] = field(default_factory=list)
 
     verbose: bool = False
     dry_run: bool = False
@@ -107,13 +107,13 @@ class JobSpec:
     def __post_init__(self):
         if self.scheduler not in SCHEDULERS:
             raise QbatchError(
-                "qbatch: error: unknown system {0}, expected one of {1}".format(
+                "qbatch: error: unknown system {}, expected one of {}".format(
                     self.scheduler, ", ".join(SCHEDULERS)
                 )
             )
         if self.env not in ENV_MODES:
             raise QbatchError(
-                "qbatch: error: unknown env mode {0}, expected one of {1}".format(
+                "qbatch: error: unknown env mode {}, expected one of {}".format(
                     self.env, ", ".join(ENV_MODES)
                 )
             )
@@ -144,8 +144,6 @@ class JobSpec:
         unknown = set(values) - {f.name for f in fields(cls)}
         if unknown:
             raise QbatchError(
-                "qbatch: error: unknown option(s) {0}".format(
-                    ", ".join(sorted(unknown))
-                )
+                "qbatch: error: unknown option(s) {}".format(", ".join(sorted(unknown)))
             )
         return cls(**values)

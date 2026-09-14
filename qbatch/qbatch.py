@@ -90,7 +90,8 @@ def _read_task_list(spec):
                 f"qbatch: error: command_file {file}"
                 + " does not exist or cannot be read"
             )
-        task_list = task_list + open(file, "r", encoding="utf-8").readlines()
+        with open(file, encoding="utf-8") as reader:
+            task_list = task_list + reader.readlines()
         job_name = job_name or os.path.basename(file)
     return task_list, job_name
 

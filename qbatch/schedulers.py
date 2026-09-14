@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from contextlib import nullcontext
 from textwrap import dedent
 
 from qbatch.errors import QbatchError
@@ -112,20 +113,18 @@ def run_command(command, logfile=None):
     process = subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
-    if logfile:
-        filehandle = open(logfile, "w", encoding="utf-8")
-    while True:
-        output = process.stdout.readline().decode("utf-8").strip()
-        if output == "" and process.poll() is not None:
-            break
-        if output and logfile:
-            filehandle.write(output)
-            filehandle.write("\n")
-        print(output)
-    rc = process.poll()
-    if logfile:
-        filehandle.close()
-    return rc
+    with (
+        open(logfile, "w", encoding="utf-8") if logfile else nullcontext()
+    ) as filehandle:
+        while True:
+            output = process.stdout.readline().decode("utf-8").strip()
+            if output == "" and process.poll() is not None:
+                break
+            if output and logfile:
+                filehandle.write(output)
+                filehandle.write("\n")
+            print(output)
+    return process.poll()
 
 
 def compute_threads(spec):
@@ -133,7 +132,7 @@ def compute_threads(spec):
     ppj = spec.ppj or 1
     cores = spec.cores
     if isinstance(cores, str) and cores.endswith("%"):
-        return int(math.floor(int(ppj) * float(cores.strip("%")) / 100))
+        return math.floor(int(ppj) * float(cores.strip("%")) / 100)
     return int(ppj) // int(cores)
 
 
@@ -186,7 +185,7 @@ class Scheduler:
                     file=sys.stderr,
                 )
         else:
-            num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
+            num_jobs = math.ceil(len(task_list) / float(chunk_size))
 
         # placeholders every scheduler template shares
         common = {
@@ -204,14 +203,18 @@ class Scheduler:
         if use_array:
             script_lines = [
                 header,
-                'command -v parallel > /dev/null 2>&1 || { echo "GNU parallel '
-                'not found in job environment. Exiting."; exit 1; }',
+                (
+                    'command -v parallel > /dev/null 2>&1 || { echo "GNU parallel '
+                    'not found in job environment. Exiting."; exit 1; }'
+                ),
                 f"CHUNK_SIZE={chunk_size}",
                 f"CORES={spec.cores}",
                 f"export THREADS_PER_COMMAND={compute_threads(spec)}",
-                'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
-                "+$(( ${CHUNK_SIZE} - 1 ))p\" << 'EOF' | parallel -j${CORES}"
-                " --tag --line-buffer --compress",
+                (
+                    'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
+                    "+$(( ${CHUNK_SIZE} - 1 ))p\" << 'EOF' | parallel -j${CORES}"
+                    " --tag --line-buffer --compress"
+                ),
                 "".join(task_list),
                 "EOF",
             ]
@@ -231,9 +234,11 @@ class Scheduler:
                 else:
                     script_lines = [
                         header,
-                        'command -v parallel > /dev/null 2>&1 || { echo "GNU'
-                        ' parallel not found in job environment. Exiting.";'
-                        " exit 1; }",
+                        (
+                            'command -v parallel > /dev/null 2>&1 || { echo "GNU'
+                            ' parallel not found in job environment. Exiting.";'
+                            " exit 1; }"
+                        ),
                         f"CORES={spec.cores}",
                         f"export THREADS_PER_COMMAND={compute_threads(spec)}",
                         "parallel -j${CORES} --tag --line-buffer --compress << 'EOF'",
@@ -270,7 +275,7 @@ class Scheduler:
             return ""
         env_exports = "\n".join(
             [
-                'export {0}="{1}"'.format(k, v.replace('"', r"\""))
+                'export {}="{}"'.format(k, v.replace('"', r"\""))
                 for k, v in list(self.spec.environ.items())
                 if not any(fnmatch.fnmatch(k, pattern) for pattern in IGNORE_ENV_VARS)
             ]
