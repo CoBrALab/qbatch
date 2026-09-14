@@ -235,3 +235,8 @@ rejects names it does not recognise instead of silently ignoring them.
 Errors are now raised as ``qbatch.QbatchError`` rather than exiting the
 process, so a python caller can catch them. The command line behaviour is
 unchanged.
+
+The undocumented helpers in ``qbatch.qbatch`` are gone. ``compute_threads``
+moved to ``qbatch.schedulers`` and takes a ``JobSpec``; ``pbs_find_jobs`` and
+``slurm_find_jobs`` became the ``find_dependencies()`` method of the PBS and
+Slurm adapters, which you get with ``qbatch.schedulers.scheduler_for(spec)``.

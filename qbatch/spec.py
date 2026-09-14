@@ -11,7 +11,10 @@ import re
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union
 
-SCHEDULERS = ("pbs", "sge", "slurm", "local", "container")
+from qbatch.errors import QbatchError
+from qbatch.schedulers import REGISTRY
+
+SCHEDULERS = tuple(REGISTRY)
 ENV_MODES = ("copied", "batch", "none")
 
 # an integer, or an integer percentage
@@ -27,10 +30,6 @@ _ARGPARSE_NAMES = {
     "dryrun": "dry_run",
     "system": "scheduler",
 }
-
-
-class QbatchError(Exception):
-    """User-facing error from any qbatch phase"""
 
 
 def _env_ppj():

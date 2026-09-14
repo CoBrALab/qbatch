@@ -2,8 +2,15 @@
 import os
 import shlex
 import shutil
+import stat
 import tempfile
 from subprocess import PIPE, STDOUT, Popen
+
+import pytest
+
+from qbatch import schedulers
+from qbatch.errors import QbatchError
+from qbatch.qbatch import qbatchDriver, submit_scripts
 
 tempdir = None
 
@@ -237,3 +244,89 @@ def test_run_qbatch_local_piped_commands_utf8():
     assert set(out.splitlines()) == set(expected.splitlines()), (
         f"Expected {expected} but got {out}"
     )
+
+
+# ------------------------------------------------------------------ driver
+
+
+def test_empty_task_list_returns_without_scripts(make_spec, tmp_path):
+    result = qbatchDriver(
+        make_spec(
+            task_list=["# comment only\n"],
+            workdir=str(tmp_path),
+            script_folder=str(tmp_path / "scripts"),
+            dry_run=True,
+        )
+    )
+    assert result is None
+    assert not (tmp_path / "scripts").exists()
+
+
+def test_driver_does_not_mutate_the_callers_task_list(make_spec, tmp_path):
+    tasks = ["# a comment\n", "echo hi\n"]
+    qbatchDriver(
+        make_spec(
+            task_list=tasks,
+            logdir=str(tmp_path / "logs"),
+            script_folder=str(tmp_path / "scripts"),
+            dry_run=True,
+        )
+    )
+    assert tasks == ["# a comment\n", "echo hi\n"]
+
+
+def test_dependency_errors_are_reported_the_same_way(make_spec, monkeypatch):
+    def check_output(command):
+        raise OSError("squeue exploded")
+
+    monkeypatch.setattr(schedulers.subprocess, "check_output", check_output)
+    with pytest.raises(QbatchError) as excinfo:
+        qbatchDriver(make_spec(scheduler="slurm", depend=["prep"], dry_run=True))
+    assert str(excinfo.value) == (
+        "qbatch: error: Error matching depend pattern squeue exploded"
+    )
+
+
+# ------------------------------------------------------------------ submit
+
+
+def submit_one(make_spec, tmp_path, name="testjob.array", **overrides):
+    return submit_scripts(
+        [(name, "#!/bin/sh\necho hi\n")],
+        make_spec(
+            logdir=str(tmp_path / "logs"),
+            script_folder=str(tmp_path / "scripts"),
+            **overrides,
+        ),
+    )
+
+
+def test_submit_reports_missing_scheduler_binary(make_spec, tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", "")
+    with pytest.raises(QbatchError) as excinfo:
+        submit_one(make_spec, tmp_path, scheduler="slurm")
+    assert str(excinfo.value) == "qbatch: error: system is slurm but sbatch not found"
+
+
+def test_missing_binary_message_names_the_real_system(make_spec, tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", "")
+    with pytest.raises(QbatchError) as excinfo:
+        submit_one(make_spec, tmp_path, scheduler="sge")
+    assert str(excinfo.value) == "qbatch: error: system is sge but qsub not found"
+
+
+def test_dry_run_needs_no_scheduler_binaries(make_spec, tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", "")
+    written = submit_one(make_spec, tmp_path, scheduler="slurm", dry_run=True)
+    assert written == [str(tmp_path / "scripts" / "testjob.array")]
+    assert (tmp_path / "scripts" / "testjob.array").exists()
+
+
+def test_container_needs_no_binaries_and_files_are_executable(
+    make_spec, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("PATH", "")
+    (path,) = submit_one(
+        make_spec, tmp_path, name="testjob.meta", scheduler="container"
+    )
+    assert os.stat(path).st_mode & stat.S_IXUSR
