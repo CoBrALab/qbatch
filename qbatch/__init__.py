@@ -1,5 +1,3 @@
 from . import qbatch
-from .qbatch import qbatchParser
-from .qbatch import qbatchDriver
-from .spec import JobSpec
-from .spec import QbatchError
+from .qbatch import qbatchDriver, qbatchParser
+from .spec import JobSpec, QbatchError
