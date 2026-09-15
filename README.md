@@ -180,7 +180,7 @@ $ qbatch -c24 commands.txt
 $ qbatch -c24 -j12 commands.txt
 
 # Start jobs after successful completion of existing jobs with names starting with "stage1_"
-$ qbatch --afterok 'stage1_*' commands.txt
+$ qbatch --depend 'stage1_*' commands.txt
 
 # Pipe a list of commands to qbatch
 $ parallel echo process.sh {} ::: *.dat | qbatch -
@@ -189,7 +189,7 @@ $ parallel echo process.sh {} ::: *.dat | qbatch -
 $ qbatch -b local -j12 commands.txt
 
 # Many options don't make sense locally: chunking, individual vs array, nodes,
-# ppj, highmem, and afterok are ignored
+# ppj, --mem, and --depend are ignored
 ```
 
 A python script example:
@@ -213,6 +213,20 @@ spec = qbatch.JobSpec(
 )
 qbatch.qbatchDriver(spec)
 ```
+
+## Very large task lists
+
+An array job has one script, and that script holds the whole task list. Each
+array element reads the full script and then selects its own chunk. With a
+very large list (for example 500,000 long commands with ``-c 4000``), bash on
+the compute node can fail to read the script before any task starts:
+
+```
+xrealloc: cannot allocate 18446744072881863172 bytes
+```
+
+Use ``-i`` to write one script per chunk, so each job holds only its own
+tasks, or split the list and run qbatch once for each part.
 
 ## Migrating to 3.0
 
