@@ -108,23 +108,23 @@ LOCAL_TEMPLATE = dedent(
 
 
 def run_command(command, logfile=None):
-    # Run command and collect stdout
-    # http://blog.endpoint.com/2015/01/getting-realtime-output-using-python.html
+    """Run command, printing each line of its output as it arrives and
+    copying non-blank lines to logfile. Returns the exit code."""
     process = subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
     with (
         open(logfile, "w", encoding="utf-8") if logfile else nullcontext()
     ) as filehandle:
-        while True:
-            output = process.stdout.readline().decode("utf-8").strip()
-            if output == "" and process.poll() is not None:
-                break
+        # read to the end of the output, not until the process exits: the
+        # two do not happen at the same moment
+        for line in process.stdout:
+            output = line.decode("utf-8").strip()
             if output and logfile:
                 filehandle.write(output)
                 filehandle.write("\n")
             print(output)
-    return process.poll()
+    return process.wait()
 
 
 def compute_threads(spec):
