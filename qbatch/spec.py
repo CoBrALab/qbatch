@@ -131,7 +131,6 @@ class JobSpec:
     dry_run: bool = False
 
     # set by __post_init__, not by the caller
-    mem_mib: int | None = field(init=False, default=None)
     warnings: list[str] = field(init=False, default_factory=list, repr=False)
 
     def __post_init__(self):
@@ -164,10 +163,16 @@ class JobSpec:
                 "qbatch: error: cores must be an integer or integer"
                 f" percentage, got {self.cores}"
             )
-        self.mem_mib, warning = parse_mem(self.mem)
+        _, warning = parse_mem(self.mem)
         if warning:
             self.warnings.append(warning)
         self.logdir = self.logdir.format(workdir=self.workdir)
+
+    # read from mem when used, so a later change to spec.mem is seen
+    @property
+    def mem_mib(self):
+        """The memory request in MiB, or None for no request."""
+        return parse_mem(self.mem)[0]
 
     @classmethod
     def from_kwargs(cls, **kwargs):

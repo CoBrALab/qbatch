@@ -114,6 +114,12 @@ def test_memory_is_written_in_the_standard_form(make_spec, scheduler, line):
     assert line in scripts[0][1].splitlines()
 
 
+def test_memory_follows_a_change_to_spec_mem(make_spec):
+    spec = make_spec(scheduler="pbs", mem="1G")
+    spec.mem = "2G"
+    assert "#PBS -l mem=2G" in scheduler_for(spec).build_scripts()[0][1]
+
+
 @pytest.mark.parametrize(
     "mib,text",
     [(1, "1M"), (1023, "1023M"), (1024, "1G"), (1536, "1536M"), (1048576, "1024G")],
