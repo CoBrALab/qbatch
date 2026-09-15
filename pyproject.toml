@@ -62,6 +62,11 @@ testing = [
     "pytest-cov>=4.0",
 ]
 
+[tool.ruff]
+# ruff's default rule set changes between releases; pin the one the code is
+# formatted and checked against
+required-version = ">=0.16"
+
 [tool.hatch.build.targets.wheel]
 packages = ["qbatch"]
 

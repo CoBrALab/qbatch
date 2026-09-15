@@ -1,5 +1,6 @@
 from . import qbatch
-from .qbatch import qbatchParser
-from .qbatch import qbatchDriver
+from .errors import QbatchError
+from .qbatch import qbatchDriver, qbatchParser
 from .spec import JobSpec
-from .spec import QbatchError
+
+__all__ = ["JobSpec", "QbatchError", "qbatch", "qbatchDriver", "qbatchParser"]
