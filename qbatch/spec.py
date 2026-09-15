@@ -180,8 +180,6 @@ class JobSpec:
     dry_run: bool = False
 
     # set by __post_init__, not by the caller
-    mem_mib: int | None = field(init=False, default=None)
-    walltime_seconds: int | None = field(init=False, default=None)
     warnings: list[str] = field(init=False, default_factory=list, repr=False)
 
     def __post_init__(self):
@@ -214,10 +212,21 @@ class JobSpec:
                 "qbatch: error: cores must be an integer or integer"
                 f" percentage, got {self.cores}"
             )
-        self.mem_mib, mem_warning = parse_mem(self.mem)
-        self.walltime_seconds, walltime_warning = parse_walltime(self.walltime)
+        _, mem_warning = parse_mem(self.mem)
+        _, walltime_warning = parse_walltime(self.walltime)
         self.warnings.extend(w for w in (mem_warning, walltime_warning) if w)
         self.logdir = self.logdir.format(workdir=self.workdir)
+
+    # read from mem and walltime when used, so a later change is seen
+    @property
+    def mem_mib(self):
+        """The memory request in MiB, or None for no request."""
+        return parse_mem(self.mem)[0]
+
+    @property
+    def walltime_seconds(self):
+        """The walltime in seconds, or None for no limit."""
+        return parse_walltime(self.walltime)[0]
 
     @classmethod
     def from_kwargs(cls, **kwargs):

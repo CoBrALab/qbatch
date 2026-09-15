@@ -126,9 +126,8 @@ def qbatchDriver(spec):
     resolution = scheduler.walltime_resolution
     if spec.walltime_seconds and spec.walltime_seconds % resolution:
         print(
-            f"qbatch: warning: {scheduler.name} counts whole minutes, --walltime"
-            f" {spec.walltime} rounded up to"
-            f" {format_hms(spec.walltime_seconds, resolution)}",
+            f"qbatch: warning: --walltime {spec.walltime} rounded up to"
+            f" {format_hms(spec.walltime_seconds, resolution)} for {scheduler.name}",
             file=sys.stderr,
         )
 

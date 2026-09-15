@@ -115,6 +115,15 @@ def test_memory_is_written_in_the_standard_form(make_spec, scheduler, line):
     assert line in scripts[0][1].splitlines()
 
 
+def test_memory_and_walltime_follow_a_change_to_the_spec(make_spec):
+    spec = make_spec(scheduler="pbs", mem="1G", walltime="1h")
+    spec.mem = "2G"
+    spec.walltime = "2h"
+    text = scheduler_for(spec).build_scripts()[0][1]
+    assert "#PBS -l mem=2G" in text
+    assert "#PBS -l walltime=2:00:00" in text
+
+
 @pytest.mark.parametrize(
     "mib,text",
     [(1, "1M"), (1023, "1023M"), (1024, "1G"), (1536, "1536M"), (1048576, "1024G")],

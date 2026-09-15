@@ -309,10 +309,7 @@ def test_driver_warns_when_the_scheduler_rounds_walltime(
             dry_run=True,
         )
     )
-    message = (
-        f"qbatch: warning: slurm counts whole minutes, --walltime {walltime}"
-        " rounded up to 1:01:00"
-    )
+    message = f"qbatch: warning: --walltime {walltime} rounded up to 1:01:00 for slurm"
     assert (message in capsys.readouterr().err) is warned
 
 
