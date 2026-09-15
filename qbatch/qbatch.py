@@ -4,12 +4,11 @@ import math
 import os
 from importlib.metadata import version
 import re
+import shutil
 import subprocess
 import stat
 import sys
 import fnmatch
-import errno
-from io import open
 from textwrap import dedent
 
 from qbatch.spec import (CORES_PATTERN, DEFAULT_LOGDIR, JobSpec, QbatchError,
@@ -18,10 +17,6 @@ from qbatch.spec import (CORES_PATTERN, DEFAULT_LOGDIR, JobSpec, QbatchError,
 # environment vars to ignore when copying the environment to the job script
 IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
                    'BASH_FUNC_*', "TMP", "TMPDIR"]
-
-CONTAINER_TEMPLATE = dedent(
-    """\
-""")
 
 PBS_HEADER_TEMPLATE = dedent(
     """\
@@ -116,30 +111,6 @@ def run_command(command, logfile=None):
     if logfile:
         filehandle.close()
     return rc
-
-
-def mkdirp(*p):
-    """Like mkdir -p"""
-    path = os.path.join(*p)
-
-    try:
-        os.makedirs(path)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST:
-            pass
-        else:
-            raise
-    return path
-
-
-def unicode_str(string):
-    """Converts a bytestring to a unicode string"""
-
-    try:
-        value = string.decode('utf-8')
-    except AttributeError:
-        value = string
-    return value
 
 
 def positive_int(string):
@@ -257,27 +228,6 @@ def slurm_find_jobs(spec):
     return regular_matches
 
 
-def which(program):
-    # Check for existence of important programs
-    # Stolen from
-    # http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python # noqa
-    def is_exe(fpath):
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
-    fpath, fname = os.path.split(program)
-    if fpath:
-        if is_exe(program):
-            return program
-    else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
-
-    return None
-
-
 def generate_scripts(spec):
     """Generate phase: turn a job spec into job script text.
 
@@ -312,6 +262,11 @@ def generate_scripts(spec):
                   "building single non-array job", file=sys.stderr)
     else:
         num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
+
+    if scheduler == 'container':
+        # collected by an external monitor, so no scheduler header
+        return [(job_name + ".joblist", ''.join(task_list)),
+                (job_name + ".meta", spec.container_meta)]
 
     # copy the current environment
     env_exports = ''
@@ -413,63 +368,56 @@ def generate_scripts(spec):
     elif scheduler == 'local':
         header = LOCAL_TEMPLATE.format(**common)
 
-    elif scheduler == 'container':
-        header = CONTAINER_TEMPLATE.format(**common)
-
     else:
         raise QbatchError(
             "qbatch: error: unknown system {0}".format(scheduler))
 
     # emit job script text
     scripts = []
-    if scheduler == "container":
-        scripts.append((job_name + ".joblist", ''.join(task_list)))
-        scripts.append((job_name + ".meta", spec.container_meta))
-    else:
-        if use_array:
-            script_lines = [
-                header,
-                'command -v parallel > /dev/null 2>&1 || { echo "GNU parallel '
-                'not found in job environment. Exiting."; exit 1; }',
-                'CHUNK_SIZE={0}'.format(chunk_size),
-                'CORES={0}'.format(spec.cores),
-                'export THREADS_PER_COMMAND={0}'.format(compute_threads(spec)),
-                'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
-                '+$(( ${CHUNK_SIZE} - 1 ))p" << \'EOF\' | parallel -j${CORES}'
-                ' --tag --line-buffer --compress',
-                ''.join(task_list),
-                'EOF']
+    if use_array:
+        script_lines = [
+            header,
+            'command -v parallel > /dev/null 2>&1 || { echo "GNU parallel '
+            'not found in job environment. Exiting."; exit 1; }',
+            'CHUNK_SIZE={0}'.format(chunk_size),
+            'CORES={0}'.format(spec.cores),
+            'export THREADS_PER_COMMAND={0}'.format(compute_threads(spec)),
+            'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
+            '+$(( ${CHUNK_SIZE} - 1 ))p" << \'EOF\' | parallel -j${CORES}'
+            ' --tag --line-buffer --compress',
+            ''.join(task_list),
+            'EOF']
 
+        text = '\n'.join(script_lines)
+        if footer_commands:
+            text += '\n' + footer_commands
+        scripts.append((job_name + ".array", text))
+    else:
+        for chunk in range(num_jobs):
+            if len(task_list) == 1:
+                script_lines = [
+                    header,
+                    'export THREADS_PER_COMMAND={0}'.format(
+                        compute_threads(spec)),
+                    ''.join(task_list)]
+            else:
+                script_lines = [
+                    header,
+                    'command -v parallel > /dev/null 2>&1 || { echo "GNU'
+                    ' parallel not found in job environment. Exiting.";'
+                    ' exit 1; }',
+                    'CORES={0}'.format(spec.cores),
+                    'export THREADS_PER_COMMAND={0}'.format(
+                        compute_threads(spec)),
+                    "parallel -j${CORES} --tag --line-buffer"
+                    " --compress << \'EOF\'",
+                    ''.join(task_list[chunk * chunk_size:chunk *
+                                      chunk_size + chunk_size]),
+                    'EOF']
             text = '\n'.join(script_lines)
             if footer_commands:
                 text += '\n' + footer_commands
-            scripts.append((job_name + ".array", text))
-        else:
-            for chunk in range(num_jobs):
-                if len(task_list) == 1:
-                    script_lines = [
-                        header,
-                        'export THREADS_PER_COMMAND={0}'.format(
-                            compute_threads(spec)),
-                        ''.join(task_list)]
-                else:
-                    script_lines = [
-                        header,
-                        'command -v parallel > /dev/null 2>&1 || { echo "GNU'
-                        ' parallel not found in job environment. Exiting.";'
-                        ' exit 1; }',
-                        'CORES={0}'.format(spec.cores),
-                        'export THREADS_PER_COMMAND={0}'.format(
-                            compute_threads(spec)),
-                        "parallel -j${CORES} --tag --line-buffer"
-                        " --compress << \'EOF\'",
-                        ''.join(task_list[chunk * chunk_size:chunk *
-                                          chunk_size + chunk_size]),
-                        'EOF']
-                text = '\n'.join(script_lines)
-                if footer_commands:
-                    text += '\n' + footer_commands
-                scripts.append(("{0}.{1}".format(job_name, chunk), text))
+            scripts.append(("{0}.{1}".format(job_name, chunk), text))
 
     return scripts
 
@@ -480,8 +428,8 @@ def submit_scripts(scripts, spec):
     """
     scheduler = spec.scheduler
 
-    mkdirp(spec.logdir)
-    mkdirp(spec.script_folder)
+    os.makedirs(spec.logdir, exist_ok=True)
+    os.makedirs(spec.script_folder, exist_ok=True)
 
     written = []
     for basename, text in scripts:
@@ -498,20 +446,20 @@ def submit_scripts(scripts, spec):
     # preflight checks, only needed when jobs will actually be submitted
     if not spec.dry_run:
         if scheduler == "slurm":
-            if not which('sbatch'):
+            if not shutil.which('sbatch'):
                 raise QbatchError("qbatch: error: system is slurm"
                                   " but sbatch not found")
-            if not which('squeue'):
+            if not shutil.which('squeue'):
                 raise QbatchError("qbatch: error: system is slurm"
                                   " but squeue not found")
         elif (scheduler == "pbs") or (scheduler == "sge"):
-            if not which('qsub'):
+            if not shutil.which('qsub'):
                 raise QbatchError("qbatch: error: system is"
                                   " pbs/sge but qsub not found")
-            if not which('qstat'):
+            if not shutil.which('qstat'):
                 raise QbatchError("qbatch: error: system is"
                                   " pbs/sge but qstat not found")
-        if not which('parallel'):
+        if not shutil.which('parallel'):
             raise QbatchError("qbatch: error: gnu-parallel not found")
 
     # execute the job script(s)
@@ -659,7 +607,7 @@ def qbatchParser(args=None):
         if -j is larger than --ppj
         (useful to make use of hyper-threading on some systems)""")
     parser.add_argument(
-        "-N", "--jobname", action="store", type=unicode_str,
+        "-N", "--jobname", action="store",
         help="""Set job name (defaults to name of command file, or STDIN)""")
     parser.add_argument(
         "--mem", default=defaults.mem,

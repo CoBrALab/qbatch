@@ -164,6 +164,17 @@ def test_driver_does_not_mutate_the_callers_task_list(tmp_path):
     assert tasks == ['# a comment\n', 'echo hi\n']
 
 
+def test_submit_reports_missing_scheduler_binary(tmp_path, monkeypatch):
+    monkeypatch.setenv('PATH', '')
+    with pytest.raises(QbatchError) as excinfo:
+        submit_scripts(
+            [('testjob.array', '#!/bin/sh\necho hi\n')],
+            spec(scheduler='slurm', dry_run=False,
+                 logdir=str(tmp_path / 'logs'),
+                 script_folder=str(tmp_path / 'scripts')))
+    assert 'sbatch not found' in str(excinfo.value)
+
+
 def test_dry_run_needs_no_scheduler_binaries(tmp_path, monkeypatch):
     monkeypatch.setenv('PATH', '')
     written = submit_scripts(
