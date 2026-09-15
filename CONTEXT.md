@@ -32,6 +32,10 @@ _Avoid_: system, backend, cluster type
 A scheduler-specific header line in a job script that requests resources or behaviour (`#PBS`, `#$`, `#SBATCH`).
 _Avoid_: header option, pragma
 
+**Job spec**:
+The complete description of a submission: the tasks, how they divide into chunks, what to request from the scheduler, and where output goes. Defaults come from the environment.
+_Avoid_: config, options, settings
+
 **Generate phase**:
 The step that turns tasks and settings into job-script text. It produces text only and reads nothing from the machine it runs on.
 _Avoid_: build, render

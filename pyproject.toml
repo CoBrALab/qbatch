@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "qbatch"
-version = "2.3.1"
+version = "3.0.0"
 description = "Execute shell command lines in parallel on Slurm, SGE and PBS/Torque clusters"
 readme = "README.md"
 license = { text = "Unlicense" }

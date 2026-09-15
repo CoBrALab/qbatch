@@ -12,48 +12,19 @@ import errno
 from io import open
 from textwrap import dedent
 
+from qbatch.spec import (CORES_PATTERN, DEFAULT_LOGDIR, JobSpec, QbatchError,
+                         SCHEDULERS)
 
-def _setupVars():
-    # setup defaults (let environment override)
-    global SYSTEM
-    SYSTEM = os.environ.get("QBATCH_SYSTEM", "local")
-    global PPJ
-    PPJ = os.environ.get("QBATCH_PPJ", "1")
-    global CHUNKSIZE
-    CHUNKSIZE = os.environ.get("QBATCH_CHUNKSIZE", PPJ)
-    global CORES
-    CORES = os.environ.get("QBATCH_CORES", PPJ)
-    global NODES
-    NODES = os.environ.get("QBATCH_NODES", "1")
-    global SGE_PE
-    SGE_PE = os.environ.get("QBATCH_SGE_PE", "smp")
-    global MEMVARS
-    MEMVARS = os.environ.get("QBATCH_MEMVARS", "mem")
-    global MEM
-    MEM = os.environ.get("QBATCH_MEM", "0")
-    global SCRIPT_FOLDER
-    SCRIPT_FOLDER = os.environ.get("QBATCH_SCRIPT_FOLDER", ".qbatch/")
-    global QUEUE
-    QUEUE = os.environ.get("QBATCH_QUEUE", None)
-    global SHELL
-    SHELL = os.environ.get("QBATCH_SHELL", "/bin/sh")
-    global OPTIONS
-    OPTIONS = [os.environ.get("QBATCH_OPTIONS")] if os.environ.get(
-        "QBATCH_OPTIONS") else []
+# environment vars to ignore when copying the environment to the job script
+IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
+                   'BASH_FUNC_*', "TMP", "TMPDIR"]
 
-    # environment vars to ignore when copying the environment to the job script
-    global IGNORE_ENV_VARS
-    IGNORE_ENV_VARS = ['PWD', 'SGE_TASK_ID', 'PBS_ARRAYID', 'ARRAY_IND',
-                       'BASH_FUNC_*', "TMP", "TMPDIR"]
+CONTAINER_TEMPLATE = dedent(
+    """\
+""")
 
-    global CONTAINER_TEMPLATE
-    CONTAINER_TEMPLATE = dedent(
-        """\
-    """)
-
-    global PBS_HEADER_TEMPLATE
-    PBS_HEADER_TEMPLATE = dedent(
-        """\
+PBS_HEADER_TEMPLATE = dedent(
+    """\
     #!{shell}
     #PBS -S {shell}
     #PBS -l nodes={nodes}:{nodes_spec}ppn={ppj}
@@ -74,12 +45,11 @@ def _setupVars():
     ARRAY_IND=$PBS_ARRAYID
     """)
 
-    global SGE_HEADER_TEMPLATE
-    SGE_HEADER_TEMPLATE = dedent(
-        """\
+SGE_HEADER_TEMPLATE = dedent(
+    """\
     #!{shell}
     #$ -S {shell}
-    #$ {ppj}
+    #$ {o_ppj}
     #$ -j y
     #$ -o {logdir}
     #$ -wd {workdir}
@@ -97,12 +67,11 @@ def _setupVars():
     ARRAY_IND=$SGE_TASK_ID
     """)
 
-    global SLURM_HEADER_TEMPLATE
-    SLURM_HEADER_TEMPLATE = dedent(
-        """\
+SLURM_HEADER_TEMPLATE = dedent(
+    """\
     #!{shell}
     #SBATCH --nodes={nodes}
-    #SBATCH {ppj}
+    #SBATCH {o_ppj}
     #SBATCH {logfile}
     #SBATCH -D {workdir}
     #SBATCH --job-name={job_name}
@@ -119,17 +88,13 @@ def _setupVars():
     ARRAY_IND=$SLURM_ARRAY_TASK_ID
     """)
 
-    global LOCAL_TEMPLATE
-    LOCAL_TEMPLATE = dedent(
-        """\
+LOCAL_TEMPLATE = dedent(
+    """\
     #!{shell}
     {env}
     {header_commands}
     cd {workdir}
     """)
-
-    global __varsSet
-    __varsSet = True
 
 
 def run_command(command, logfile=None):
@@ -193,30 +158,30 @@ def positive_int(string):
 
 def int_or_percent(string):
     """Checks argument is an integer or integer percentage"""
-    if not re.match(r"^([-+]?\d+|^\d+%)$", string):
+    if not re.match(CORES_PATTERN, string):
         msg = "Must be an integer or positive integer percentage"
         raise argparse.ArgumentTypeError(msg)
     return string
 
 
-def compute_threads(ppj, ncores):
+def compute_threads(spec):
     """Computes either number cores per job available"""
-    if not ppj:
-        ppj = 1
-    if ncores[-1] == '%':
-        return int(math.floor(ppj * float(ncores.strip('%')) / 100))
-    else:
-        return int(ppj) // int(ncores)
+    ppj = spec.ppj or 1
+    cores = spec.cores
+    if isinstance(cores, str) and cores.endswith('%'):
+        return int(math.floor(int(ppj) * float(cores.strip('%')) / 100))
+    return int(ppj) // int(cores)
 
 
-def pbs_find_jobs(patterns):
-    """Finds jobs with names matching a given list of patterns
+def pbs_find_jobs(spec):
+    """Finds jobs with names matching the spec's depend patterns
 
     Returns a list of job IDs.
 
     Raises an Exception if there is an error running the 'qstat' command or
     parsing its output.
     """
+    patterns = spec.depend
     if not patterns:
         return [], []
 
@@ -259,12 +224,13 @@ def pbs_find_jobs(patterns):
     return array_matches, regular_matches
 
 
-def slurm_find_jobs(patterns):
-    """Finds jobs with names matching a given list of patterns
+def slurm_find_jobs(spec):
+    """Finds jobs with names matching the spec's depend patterns
     Returns a list of job IDs.
     Raises an Exception if there is an error running the 'squeue' command or
     parsing its output.
     """
+    patterns = spec.depend
     if not patterns:
         return []
 
@@ -312,158 +278,153 @@ def which(program):
     return None
 
 
-class QbatchError(Exception):
-    """User-facing error during the generate or submit phase"""
+def generate_scripts(spec):
+    """Generate phase: turn a job spec into job script text.
 
-
-def _ensureVars():
-    try:
-        __varsSet
-    except NameError:
-        _setupVars()
-
-
-def generate_scripts(kwargs):
-    """Generate phase: turn tasks and settings into job script text.
-
-    Takes the driver's settings dict and returns a list of
-    (basename, text) pairs. Produces text only: no filesystem,
-    process, or scheduler access.
+    Returns a list of (basename, text) pairs. Produces text only: no
+    filesystem, process, or scheduler access.
     """
-    _ensureVars()
-    task_list = kwargs.get('task_list')
-    walltime = kwargs.get('walltime')
-    chunk_size = kwargs.get('chunksize')
-    ncores = kwargs.get('cores')
-    ppj = kwargs.get('ppj')
-    job_name = kwargs.get('jobname')
-    mem = kwargs.get('mem') != '0' and kwargs.get('mem') or None
-    queue = kwargs.get('queue')
-    verbose = kwargs.get('verbose')
-    depend_pattern = kwargs.get('depend')
-    workdir = kwargs.get('workdir')
-    logdir = kwargs.get('logdir')
-    options = kwargs.get('options')
-    header_commands = (kwargs.get('header') and
-                       '\n'.join(kwargs.get('header')) or '')
-    footer_commands = (kwargs.get('footer') and
-                       '\n'.join(kwargs.get('footer')) or '')
-    nodes = kwargs.get('nodes')
-    sge_pe = kwargs.get('sge_pe')
-    memvars = kwargs.get('memvars').split(',')
-    nodes_spec = (kwargs.get('pbs_nodes_spec') and
-                  ':'.join(kwargs.get('pbs_nodes_spec')) + ':') or ''
-    use_array = not kwargs.get('individual')
-    system = kwargs.get('system')
-    env_mode = kwargs.get('env')
-    shell = kwargs.get('shell')
-    block = kwargs.get('block')
-    depend_array_ids = kwargs.get('depend_array_ids') or []
-    depend_job_ids = kwargs.get('depend_job_ids') or []
-    environ = kwargs.get('environ') or {}
+    task_list = spec.task_list
+    job_name = spec.job_name
+    chunk_size = spec.chunk_size
+    scheduler = spec.scheduler
+    walltime = spec.walltime
+    use_array = not spec.individual
+    mem = spec.mem != '0' and spec.mem or None
+    memvars = spec.memvars.split(',')
+    mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
+    header_commands = spec.header and '\n'.join(spec.header) or ''
+    footer_commands = spec.footer and '\n'.join(spec.footer) or ''
+    nodes_spec = (spec.pbs_nodes_spec and
+                  ':'.join(spec.pbs_nodes_spec) + ':') or ''
 
     # compute the number of jobs needed. This will be the number of elements in
     # the array job
-    if system == 'local' or chunk_size == 0:
+    if scheduler == 'local' or chunk_size == 0:
         use_array = False
         num_jobs = 1
         chunk_size = sys.maxsize
     elif len(task_list) <= chunk_size:
         use_array = False
         num_jobs = 1
-        if verbose:
+        if spec.verbose:
             print("Number of commands less than chunk size, "
                   "building single non-array job", file=sys.stderr)
     else:
         num_jobs = int(math.ceil(len(task_list) / float(chunk_size)))
 
     # copy the current environment
-    env = ''
-    if env_mode == 'copied':
-        env = '\n'.join(['export {0}="{1}"'.format(k, v.replace('"', r'\"'))
-                         for k, v in list(environ.items())
-                         if not any(fnmatch.fnmatch(k, pattern) for pattern
-                                    in IGNORE_ENV_VARS)])
-        env = env.replace("$", "$$")
-        env = "# -- start copied env\n{0}\n# -- end copied env".format(env)
+    env_exports = ''
+    if spec.env == 'copied':
+        env_exports = '\n'.join(
+            ['export {0}="{1}"'.format(k, v.replace('"', r'\"'))
+             for k, v in list(spec.environ.items())
+             if not any(fnmatch.fnmatch(k, pattern)
+                        for pattern in IGNORE_ENV_VARS)])
+        env_exports = env_exports.replace("$", "$$")
+        env_exports = "# -- start copied env\n{0}\n# -- end copied env".format(
+            env_exports)
 
-    if system == 'pbs':
-        o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
-        o_walltime = walltime and "-l walltime={0}".format(walltime) or ''
-        o_dependencies = '{0}'.format(
-            '-W depend=' if (depend_array_ids or depend_job_ids)
-            else '')
-        o_dependencies += '{0}'.format(('afterok:' + ':'.join(
-            depend_job_ids)) if depend_job_ids else '')
-        o_dependencies += '{0}'.format(
-            ',' if (depend_array_ids and depend_job_ids) else '')
-        o_dependencies += '{0}'.format(('afterokarray:' + ':'.join(
-            depend_array_ids)) if depend_array_ids else '')
-        o_options = '\n#PBS '.join(options)
-        mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
-        o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
-        o_env = (env_mode == 'batch') and '-V' or ''
-        o_queue = queue and '-q {0}'.format(queue) or ''
-        o_block = block and " -Wblock=true" or ''
+    # placeholders every scheduler template shares
+    common = {
+        'shell': spec.shell,
+        'logdir': spec.logdir,
+        'workdir': spec.workdir,
+        'job_name': job_name,
+        'env': env_exports,
+        'header_commands': header_commands,
+    }
 
-        header = PBS_HEADER_TEMPLATE.format(**vars())
+    if scheduler == 'pbs':
+        o_dependencies = ''
+        if spec.depend_array_ids or spec.depend_job_ids:
+            o_dependencies = '-W depend='
+            if spec.depend_job_ids:
+                o_dependencies += 'afterok:' + ':'.join(spec.depend_job_ids)
+            if spec.depend_array_ids and spec.depend_job_ids:
+                o_dependencies += ','
+            if spec.depend_array_ids:
+                o_dependencies += 'afterokarray:' + ':'.join(
+                    spec.depend_array_ids)
 
-    elif system == 'sge':
-        ppj = (ppj > 1) and '-pe {0} {1}'.format(sge_pe, ppj) or ''
-        o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
-        o_walltime = walltime and "-l h_rt={0}".format(walltime) or ''
-        o_dependencies = depend_pattern and '-hold_jid \'' + \
-            '\',\''.join(depend_pattern) + '\'' or ''
-        o_options = '\n#$ '.join(options)
-        mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
-        o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
-        o_env = (env_mode == 'batch') and '-V' or ''
-        o_queue = queue and '-q {0}'.format(queue) or ''
-        o_block = block and " -sync y" or ''
+        header = PBS_HEADER_TEMPLATE.format(
+            nodes=spec.nodes,
+            nodes_spec=nodes_spec,
+            ppj=spec.ppj,
+            o_array=use_array and '-t 1-{0}'.format(num_jobs) or '',
+            o_walltime=walltime and "-l walltime={0}".format(walltime) or '',
+            o_dependencies=o_dependencies,
+            o_options='\n#PBS '.join(spec.options),
+            o_memopts=(mem and mem_string) and '-l {0}'.format(
+                mem_string) or '',
+            o_env=(spec.env == 'batch') and '-V' or '',
+            o_queue=spec.queue and '-q {0}'.format(spec.queue) or '',
+            o_block=spec.block and " -Wblock=true" or '',
+            **common)
 
-        header = SGE_HEADER_TEMPLATE.format(**vars())
+    elif scheduler == 'sge':
+        o_dependencies = spec.depend and '-hold_jid \'' + \
+            '\',\''.join(spec.depend) + '\'' or ''
 
-    elif system == 'slurm':
-        ppj = (ppj > 1) and '--cpus-per-task={0}'.format(ppj) or ''
-        o_array = use_array and '--array=1-{0}'.format(num_jobs) or ''
+        header = SGE_HEADER_TEMPLATE.format(
+            o_ppj=(spec.ppj > 1) and '-pe {0} {1}'.format(
+                spec.sge_pe, spec.ppj) or '',
+            o_array=use_array and '-t 1-{0}'.format(num_jobs) or '',
+            o_walltime=walltime and "-l h_rt={0}".format(walltime) or '',
+            o_dependencies=o_dependencies,
+            o_options='\n#$ '.join(spec.options),
+            o_memopts=(mem and mem_string) and '-l {0}'.format(
+                mem_string) or '',
+            o_env=(spec.env == 'batch') and '-V' or '',
+            o_queue=spec.queue and '-q {0}'.format(spec.queue) or '',
+            o_block=spec.block and " -sync y" or '',
+            **common)
+
+    elif scheduler == 'slurm':
         if (walltime and walltime.find(":") > 0):
             o_walltime = "--time={0}".format(walltime)
         elif walltime:
-            o_walltime = "--time={:1.0f}".format(
-                int(walltime) / 60)
+            o_walltime = "--time={:1.0f}".format(int(walltime) / 60)
         else:
             o_walltime = ''
-        o_dependencies = '{0}'.format(
-            '--dependency=afterok:' + ':'.join(depend_job_ids)
-            if (depend_job_ids) else '')
-        o_options = '\n#SBATCH '.join(options)
-        mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
-        o_memopts = (mem and mem_string) and '--{0}'.format(mem_string) or ''
-        o_env = (env_mode == 'batch') and '--export=ALL' or '--export=NONE'
+
         logfile = use_array and '--output={0}/slurm-{1}-%A_%a.out'.format(
-            logdir, job_name) or '--output={0}/slurm-{1}-%j.out'.format(
-            logdir, job_name)
-        o_queue = queue and '--partition={0}'.format(queue) or ''
-        o_block = block and " --wait" or ''
+            spec.logdir, job_name) or '--output={0}/slurm-{1}-%j.out'.format(
+            spec.logdir, job_name)
 
-        header = SLURM_HEADER_TEMPLATE.format(**vars())
+        header = SLURM_HEADER_TEMPLATE.format(
+            nodes=spec.nodes,
+            o_ppj=(spec.ppj > 1) and '--cpus-per-task={0}'.format(
+                spec.ppj) or '',
+            logfile=logfile,
+            o_array=use_array and '--array=1-{0}'.format(num_jobs) or '',
+            o_walltime=o_walltime,
+            o_dependencies='--dependency=afterok:' + ':'.join(
+                spec.depend_job_ids) if spec.depend_job_ids else '',
+            o_options='\n#SBATCH '.join(spec.options),
+            o_memopts=(mem and mem_string) and '--{0}'.format(
+                mem_string) or '',
+            o_env=(spec.env == 'batch') and '--export=ALL' or '--export=NONE',
+            o_queue=spec.queue and '--partition={0}'.format(
+                spec.queue) or '',
+            o_block=spec.block and " --wait" or '',
+            **common)
 
-    elif system == 'local':
-        header = LOCAL_TEMPLATE.format(**vars())
+    elif scheduler == 'local':
+        header = LOCAL_TEMPLATE.format(**common)
 
-    elif system == 'container':
-        header = CONTAINER_TEMPLATE.format(**vars())
+    elif scheduler == 'container':
+        header = CONTAINER_TEMPLATE.format(**common)
 
     else:
         raise QbatchError(
-            "qbatch: error: unknown system {0}".format(system))
+            "qbatch: error: unknown system {0}".format(scheduler))
 
     # emit job script text
     scripts = []
-    if system == "container":
+    if scheduler == "container":
         scripts.append((job_name + ".joblist", ''.join(task_list)))
-        scripts.append((job_name + ".meta",
-                        kwargs.get('container_meta') or ''))
+        scripts.append((job_name + ".meta", spec.container_meta))
     else:
         if use_array:
             script_lines = [
@@ -471,11 +432,8 @@ def generate_scripts(kwargs):
                 'command -v parallel > /dev/null 2>&1 || { echo "GNU parallel '
                 'not found in job environment. Exiting."; exit 1; }',
                 'CHUNK_SIZE={0}'.format(chunk_size),
-                'CORES={0}'.format(ncores),
-                'export THREADS_PER_COMMAND={0}'.format(
-                    compute_threads(
-                        kwargs.get('ppj'),
-                        ncores)),
+                'CORES={0}'.format(spec.cores),
+                'export THREADS_PER_COMMAND={0}'.format(compute_threads(spec)),
                 'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
                 '+$(( ${CHUNK_SIZE} - 1 ))p" << \'EOF\' | parallel -j${CORES}'
                 ' --tag --line-buffer --compress',
@@ -492,7 +450,7 @@ def generate_scripts(kwargs):
                     script_lines = [
                         header,
                         'export THREADS_PER_COMMAND={0}'.format(
-                            compute_threads(kwargs.get('ppj'), ncores)),
+                            compute_threads(spec)),
                         ''.join(task_list)]
                 else:
                     script_lines = [
@@ -500,9 +458,9 @@ def generate_scripts(kwargs):
                         'command -v parallel > /dev/null 2>&1 || { echo "GNU'
                         ' parallel not found in job environment. Exiting.";'
                         ' exit 1; }',
-                        'CORES={0}'.format(ncores),
+                        'CORES={0}'.format(spec.cores),
                         'export THREADS_PER_COMMAND={0}'.format(
-                            compute_threads(kwargs.get('ppj'), ncores)),
+                            compute_threads(spec)),
                         "parallel -j${CORES} --tag --line-buffer"
                         " --compress << \'EOF\'",
                         ''.join(task_list[chunk * chunk_size:chunk *
@@ -516,43 +474,37 @@ def generate_scripts(kwargs):
     return scripts
 
 
-def submit_scripts(scripts, kwargs):
+def submit_scripts(scripts, spec):
     """Submit phase: write job scripts to disk and hand them to the
     scheduler. Owns every side effect. Returns the paths written.
     """
-    _ensureVars()
-    system = kwargs.get('system')
-    script_folder = kwargs.get('script_folder', SCRIPT_FOLDER)
-    logdir = kwargs.get('logdir')
-    job_name = kwargs.get('jobname')
-    verbose = kwargs.get('verbose')
-    dry_run = kwargs.get('dryrun')
+    scheduler = spec.scheduler
 
-    mkdirp(logdir)
-    mkdirp(script_folder)
+    mkdirp(spec.logdir)
+    mkdirp(spec.script_folder)
 
     written = []
     for basename, text in scripts:
-        path = os.path.join(script_folder, basename)
+        path = os.path.join(spec.script_folder, basename)
         with open(path, 'w', encoding="utf-8") as script:
             script.write(text)
         written.append(path)
 
-    if system == 'container':
+    if scheduler == 'container':
         # container scripts are collected by an external monitor,
         # nothing to submit
         return written
 
     # preflight checks, only needed when jobs will actually be submitted
-    if not dry_run:
-        if system == "slurm":
+    if not spec.dry_run:
+        if scheduler == "slurm":
             if not which('sbatch'):
                 raise QbatchError("qbatch: error: system is slurm"
                                   " but sbatch not found")
             if not which('squeue'):
                 raise QbatchError("qbatch: error: system is slurm"
                                   " but squeue not found")
-        elif (system == "pbs") or (system == "sge"):
+        elif (scheduler == "pbs") or (scheduler == "sge"):
             if not which('qsub'):
                 raise QbatchError("qbatch: error: system is"
                                   " pbs/sge but qsub not found")
@@ -565,31 +517,31 @@ def submit_scripts(scripts, kwargs):
     # execute the job script(s)
     for script in written:
         os.chmod(script, os.stat(script).st_mode | stat.S_IXUSR)
-        if system == 'sge' or system == 'pbs':
-            if verbose:
+        if scheduler == 'sge' or scheduler == 'pbs':
+            if spec.verbose:
                 print("Running: qsub {0}".format(script))
-            if dry_run:
+            if spec.dry_run:
                 continue
             return_code = subprocess.call(['qsub', script])
             if return_code:
                 raise QbatchError(
                     "qbatch: error: qsub call "
                     "returned error code {0}".format(return_code))
-        elif system == 'slurm':
-            if verbose:
+        elif scheduler == 'slurm':
+            if spec.verbose:
                 print("Running: sbatch {0}".format(script))
-            if dry_run:
+            if spec.dry_run:
                 continue
             return_code = subprocess.call(['sbatch', script])
             if return_code:
                 raise QbatchError(
                     "qbatch: error: sbatch call "
                     "returned error code {0}".format(return_code))
-        elif system == 'local':
-            logfile = "{0}/{1}.log".format(logdir, job_name)
-            if verbose:
+        elif scheduler == 'local':
+            logfile = "{0}/{1}.log".format(spec.logdir, spec.job_name)
+            if spec.verbose:
                 print("Launching jobscript. Output to {0}".format(logfile))
-            if dry_run:
+            if spec.dry_run:
                 continue
             return_code = run_command(script, logfile=logfile)
             if return_code:
@@ -599,85 +551,80 @@ def submit_scripts(scripts, kwargs):
     return written
 
 
-def qbatchDriver(**kwargs):
-    _ensureVars()
-    command_file = kwargs.get('command_file')
-    job_name = kwargs.get('jobname')
+def _read_task_list(spec):
+    """Read the commands to run, and name the job after their source."""
+    if spec.task_list:
+        return spec.task_list, spec.job_name or 'qbatchDriver'
 
-    # read in commands
-    if not kwargs.get('task_list'):
-        if command_file[0] == '--':
-            if (len(command_file) > 1):
-                task_list = [" ".join(command_file[1:])]
-                job_name = job_name or command_file[1]
-            else:
-                raise QbatchError(
-                    "qbatch: error: no command provided as last argument")
-        elif command_file[0] == '-':
-            with open(getattr(sys.stdin, 'buffer', sys.stdin).fileno(),
-                      encoding='utf8') as reader:
-                task_list = reader.readlines()
-            job_name = job_name or 'STDIN'
-        else:
-            task_list = []
-            for file in command_file:
-                if os.path.isfile(file):
-                    task_list = task_list + open(file,
-                                                 'r',
-                                                 encoding="utf-8").readlines()
-                    job_name = job_name or os.path.basename(file)
-                else:
-                    raise QbatchError(
-                        "qbatch: error: command_file {0}".format(file) +
-                        " does not exist or cannot be read")
-    else:
-        task_list = kwargs.get('task_list')
-        job_name = job_name or 'qbatchDriver'
+    command_file = spec.command_file
+    if command_file[0] == '--':
+        if len(command_file) > 1:
+            return ([" ".join(command_file[1:])],
+                    spec.job_name or command_file[1])
+        raise QbatchError(
+            "qbatch: error: no command provided as last argument")
+
+    if command_file[0] == '-':
+        with open(getattr(sys.stdin, 'buffer', sys.stdin).fileno(),
+                  encoding='utf8') as reader:
+            return reader.readlines(), spec.job_name or 'STDIN'
+
+    task_list = []
+    job_name = spec.job_name
+    for file in command_file:
+        if not os.path.isfile(file):
+            raise QbatchError(
+                "qbatch: error: command_file {0}".format(file) +
+                " does not exist or cannot be read")
+        task_list = task_list + open(file, 'r',
+                                     encoding="utf-8").readlines()
+        job_name = job_name or os.path.basename(file)
+    return task_list, job_name
+
+
+def qbatchDriver(spec):
+    """Read the tasks, resolve dependencies, then generate and submit."""
+    task_list, job_name = _read_task_list(spec)
 
     # Drop commented out lines
-    task_list[:] = [x for x in task_list if not x.startswith('#')]
+    spec.task_list = [x for x in task_list if not x.startswith('#')]
+    spec.job_name = job_name
 
-    if len(task_list) == 0:
+    if len(spec.task_list) == 0:
         print("qbatch: warning: No jobs to submit, exiting", file=sys.stderr)
         return
 
-    kwargs['task_list'] = task_list
-    kwargs['jobname'] = job_name
-    kwargs['logdir'] = kwargs.get('logdir').format(
-        workdir=kwargs.get('workdir'))
-
     # resolve dependency patterns to job ids before the generate phase
-    system = kwargs.get('system')
-    depend_pattern = kwargs.get('depend')
-    if system == 'pbs':
+    if spec.scheduler == 'pbs':
         try:
-            depend_array_ids, depend_job_ids = pbs_find_jobs(depend_pattern)
+            spec.depend_array_ids, spec.depend_job_ids = pbs_find_jobs(spec)
         except Exception as e:
             raise QbatchError(
                 "qbatch: error: Error matching"
                 " depend pattern {0}".format(str(e)))
-        if (depend_array_ids and depend_job_ids):
+        if (spec.depend_array_ids and spec.depend_job_ids):
             print("qbatch: warning: depdendencies on both regular and"
                   " array jobs found, this is only supported on"
                   " Torque 6.0.2 and above. You may get qsub error"
                   " code 168.", file=sys.stderr)
-        kwargs['depend_array_ids'] = depend_array_ids
-        kwargs['depend_job_ids'] = depend_job_ids
-    elif system == 'slurm':
+    elif spec.scheduler == 'slurm':
         try:
-            kwargs['depend_job_ids'] = slurm_find_jobs(depend_pattern)
+            spec.depend_job_ids = slurm_find_jobs(spec)
         except Exception as e:
             raise QbatchError(
                 "Error matching depend pattern {0}".format(str(e)))
 
-    kwargs['environ'] = dict(os.environ)
+    spec.environ = dict(os.environ)
 
-    scripts = generate_scripts(kwargs)
-    submit_scripts(scripts, kwargs)
+    scripts = generate_scripts(spec)
+    submit_scripts(scripts, spec)
 
 
 def qbatchParser(args=None):
-    _setupVars()
+    try:
+        defaults = JobSpec()
+    except QbatchError as e:
+        sys.exit(str(e))
     __version__ = version("qbatch")
 
     parser = argparse.ArgumentParser(
@@ -685,7 +632,7 @@ def qbatchParser(args=None):
         The list of commands can be broken up into 'chunks' when submitted, so
         that the commands in each chunk run in parallel (using GNU parallel).
         The job script(s) generated by %(prog)s are stored in the folder
-        {0}""".format(SCRIPT_FOLDER),
+        {0}""".format(defaults.script_folder),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "command_file", nargs=argparse.REMAINDER,
@@ -696,17 +643,17 @@ def qbatchParser(args=None):
         "-w", "--walltime",
         help="""Maximum walltime for an array job element or individual job""")
     parser.add_argument(
-        "-c", "--chunksize", default=CHUNKSIZE, type=int,
+        "-c", "--chunksize", default=defaults.chunk_size, type=int,
         help="""Number of commands from the command list that are wrapped into
         each job""")
     parser.add_argument(
-        "-j", "--cores", default=CORES, type=int_or_percent,
+        "-j", "--cores", default=defaults.cores, type=int_or_percent,
         help="""Number of commands each job runs in parallel. If the chunk size
         (-c) is smaller than -j then only chunk size commands will run in
         parallel. This option can also be expressed as a percentage (e.g.
         100%%) of the total available cores""")
     parser.add_argument(
-        "--ppj", default=PPJ, type=positive_int,
+        "--ppj", default=defaults.ppj, type=positive_int,
         help="""Requested number of processors per job (aka ppn on PBS,
         slots on SGE, cpus per task on SLURM). Cores can be over subscribed
         if -j is larger than --ppj
@@ -715,12 +662,12 @@ def qbatchParser(args=None):
         "-N", "--jobname", action="store", type=unicode_str,
         help="""Set job name (defaults to name of command file, or STDIN)""")
     parser.add_argument(
-        "--mem", default=MEM,
+        "--mem", default=defaults.mem,
         help="""Memory required for each job (e.g. --mem 1G).  This value will
         be set on each variable specified in --memvars. To not set any memory
         requirement, set this to 0""")
     parser.add_argument(
-        "-q", "--queue", default=QUEUE,
+        "-q", "--queue", default=defaults.queue,
         help="""Name of queue to submit jobs to (defaults to no queue)""")
 
     parser.add_argument(
@@ -740,13 +687,13 @@ def qbatchParser(args=None):
         given glob pattern or job id matching given job id(s) before
         starting""")
     group.add_argument(
-        "-d", "--workdir", default=os.getcwd(),
+        "-d", "--workdir", default=defaults.workdir,
         help="Job working directory")
     group.add_argument(
-        "--logdir", action="store", default="{workdir}/logs",
+        "--logdir", action="store", default=DEFAULT_LOGDIR,
         help="""Directory to save store log files""")
     group.add_argument(
-        "-o", "--options", action="append", default=OPTIONS,
+        "-o", "--options", action="append", default=defaults.options,
         help="""Custom options passed directly to the queuing system (e.g
         --options "-l vf=8G". This option can be given multiple times""")
     group.add_argument(
@@ -758,14 +705,14 @@ def qbatchParser(args=None):
         help="""A line to insert verbatim at the end of the script, and will
         be run once per job. This option can be given multiple times""")
     group.add_argument(
-        "--nodes", default=NODES, type=positive_int,
+        "--nodes", default=defaults.nodes, type=positive_int,
         help="(PBS and SLURM only) Nodes to request per job")
     group.add_argument(
-        "--sge-pe", default=SGE_PE,
+        "--sge-pe", default=defaults.sge_pe,
         help="""(SGE-only) The parallel environment to use if more than one
         processor per job is requested""")
     group.add_argument(
-        "--memvars", default=MEMVARS,
+        "--memvars", default=defaults.memvars,
         help="""A comma-separated list of variables to set with the memory
         limit given by the --mem option (e.g. --memvars=h_vmem,vf)""")
     group.add_argument(
@@ -775,8 +722,7 @@ def qbatchParser(args=None):
         "-i", "--individual", action="store_true",
         help="Submit individual jobs instead of an array job")
     group.add_argument(
-        "-b", "--system", default=SYSTEM, choices=['pbs', 'sge', 'slurm',
-                                                   'local', 'container'],
+        "-b", "--system", default=defaults.scheduler, choices=SCHEDULERS,
         help="""The type of queueing system to use. 'pbs' and 'sge' both make
         calls to qsub to submit jobs. 'slurm' calls sbatch.
         'local' runs the entire command list (without chunking) locally.
@@ -784,14 +730,14 @@ def qbatchParser(args=None):
         of a container to a monitoring process for submission to a
         batch system.""")
     group.add_argument(
-        "--env", choices=['copied', 'batch', 'none'], default='copied',
+        "--env", choices=['copied', 'batch', 'none'], default=defaults.env,
         help="""Determines how your environment is propagated when your
               job runs. "copied" records your environment settings in
               the job submission script, "batch" uses the cluster's
               mechanism for propagating your environment, and "none"
               does not propagate any environment variables.""")
     group.add_argument(
-        "--shell", default=SHELL,
+        "--shell", default=defaults.shell,
         help="""Shell to use for spawning jobs
         and launching single commands""")
     group.add_argument(
@@ -799,7 +745,7 @@ def qbatchParser(args=None):
         help="""For SGE, PBS and SLURM, blocks execution until jobs are
         finished.""")
     group.add_argument(
-        "--script-folder", default=SCRIPT_FOLDER,
+        "--script-folder", default=defaults.script_folder,
         help="""Directory where job scripts are stored""")
 
     args = parser.parse_args(args)
@@ -807,7 +753,9 @@ def qbatchParser(args=None):
         parser.print_usage()
         sys.exit("qbatch: error: no command file or command provided")
     try:
-        qbatchDriver(container_meta=" ".join(sys.argv[1:-1]), **vars(args))
+        spec = JobSpec.from_kwargs(
+            container_meta=" ".join(sys.argv[1:-1]), **vars(args))
+        qbatchDriver(spec)
     except QbatchError as e:
         sys.exit(str(e))
 
