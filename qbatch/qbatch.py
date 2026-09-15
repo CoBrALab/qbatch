@@ -312,14 +312,26 @@ def which(program):
     return None
 
 
-def qbatchDriver(**kwargs):
+class QbatchError(Exception):
+    """User-facing error during the generate or submit phase"""
+
+
+def _ensureVars():
     try:
         __varsSet
     except NameError:
         _setupVars()
-    else:
-        pass
-    command_file = kwargs.get('command_file')
+
+
+def generate_scripts(kwargs):
+    """Generate phase: turn tasks and settings into job script text.
+
+    Takes the driver's settings dict and returns a list of
+    (basename, text) pairs. Produces text only: no filesystem,
+    process, or scheduler access.
+    """
+    _ensureVars()
+    task_list = kwargs.get('task_list')
     walltime = kwargs.get('walltime')
     chunk_size = kwargs.get('chunksize')
     ncores = kwargs.get('cores')
@@ -328,10 +340,9 @@ def qbatchDriver(**kwargs):
     mem = kwargs.get('mem') != '0' and kwargs.get('mem') or None
     queue = kwargs.get('queue')
     verbose = kwargs.get('verbose')
-    dry_run = kwargs.get('dryrun')
     depend_pattern = kwargs.get('depend')
     workdir = kwargs.get('workdir')
-    logdir = kwargs.get('logdir').format(workdir=workdir)
+    logdir = kwargs.get('logdir')
     options = kwargs.get('options')
     header_commands = (kwargs.get('header') and
                        '\n'.join(kwargs.get('header')) or '')
@@ -347,47 +358,12 @@ def qbatchDriver(**kwargs):
     env_mode = kwargs.get('env')
     shell = kwargs.get('shell')
     block = kwargs.get('block')
-    script_folder = kwargs.get('script_folder', SCRIPT_FOLDER)
-
-    mkdirp(logdir)
-
-    # read in commands
-    if not kwargs.get('task_list'):
-        if command_file[0] == '--':
-            if (len(command_file) > 1):
-                task_list = [" ".join(command_file[1:])]
-                job_name = job_name or command_file[1]
-            else:
-                sys.exit("qbatch: error: no command provided as last argument")
-        elif command_file[0] == '-':
-            with open(getattr(sys.stdin, 'buffer', sys.stdin).fileno(),
-                      encoding='utf8') as reader:
-                task_list = reader.readlines()
-            job_name = job_name or 'STDIN'
-        else:
-            task_list = []
-            for file in command_file:
-                if os.path.isfile(file):
-                    task_list = task_list + open(file,
-                                                 'r',
-                                                 encoding="utf-8").readlines()
-                    job_name = job_name or os.path.basename(file)
-                else:
-                    sys.exit("qbatch: error: command_file {0}".format(file) +
-                             " does not exist or cannot be read")
-    else:
-        task_list = kwargs.get('task_list')
-        job_name = job_name or 'qbatchDriver'
-
-    # Drop commented out lines
-    task_list[:] = [x for x in task_list if not x.startswith('#')]
+    depend_array_ids = kwargs.get('depend_array_ids') or []
+    depend_job_ids = kwargs.get('depend_job_ids') or []
+    environ = kwargs.get('environ') or {}
 
     # compute the number of jobs needed. This will be the number of elements in
     # the array job
-    if len(task_list) == 0:
-        print("qbatch: warning: No jobs to submit, exiting", file=sys.stderr)
-        sys.exit()
-
     if system == 'local' or chunk_size == 0:
         use_array = False
         num_jobs = 1
@@ -405,38 +381,24 @@ def qbatchDriver(**kwargs):
     env = ''
     if env_mode == 'copied':
         env = '\n'.join(['export {0}="{1}"'.format(k, v.replace('"', r'\"'))
-                         for k, v in list(os.environ.items())
+                         for k, v in list(environ.items())
                          if not any(fnmatch.fnmatch(k, pattern) for pattern
                                     in IGNORE_ENV_VARS)])
         env = env.replace("$", "$$")
         env = "# -- start copied env\n{0}\n# -- end copied env".format(env)
 
     if system == 'pbs':
-        try:
-            matching_array_jobids, matching_regular_jobids = pbs_find_jobs(
-                depend_pattern)
-        except Exception as e:
-            sys.exit(
-                "qbatch: error: Error matching"
-                " depend pattern {0}".format(str(e)))
-
-        if (matching_array_jobids and matching_regular_jobids):
-            print("qbatch: warning: depdendencies on both regular and"
-                  " array jobs found, this is only supported on"
-                  " Torque 6.0.2 and above. You may get qsub error"
-                  " code 168.", file=sys.stderr)
-
         o_array = use_array and '-t 1-{0}'.format(num_jobs) or ''
         o_walltime = walltime and "-l walltime={0}".format(walltime) or ''
         o_dependencies = '{0}'.format(
-            '-W depend=' if (matching_array_jobids or matching_regular_jobids)
+            '-W depend=' if (depend_array_ids or depend_job_ids)
             else '')
         o_dependencies += '{0}'.format(('afterok:' + ':'.join(
-            matching_regular_jobids)) if matching_regular_jobids else '')
+            depend_job_ids)) if depend_job_ids else '')
         o_dependencies += '{0}'.format(
-            ',' if (matching_array_jobids and matching_regular_jobids) else '')
+            ',' if (depend_array_ids and depend_job_ids) else '')
         o_dependencies += '{0}'.format(('afterokarray:' + ':'.join(
-            matching_array_jobids)) if matching_array_jobids else '')
+            depend_array_ids)) if depend_array_ids else '')
         o_options = '\n#PBS '.join(options)
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '-l {0}'.format(mem_string) or ''
@@ -471,14 +433,9 @@ def qbatchDriver(**kwargs):
                 int(walltime) / 60)
         else:
             o_walltime = ''
-        try:
-            matching_regular_jobids = slurm_find_jobs(
-                depend_pattern)
-        except Exception as e:
-            sys.exit("Error matching depend pattern {0}".format(str(e)))
         o_dependencies = '{0}'.format(
-            '--dependency=afterok:' + ':'.join(matching_regular_jobids)
-            if (matching_regular_jobids) else '')
+            '--dependency=afterok:' + ':'.join(depend_job_ids)
+            if (depend_job_ids) else '')
         o_options = '\n#SBATCH '.join(options)
         mem_string = ','.join(["{0}={1}".format(var, mem) for var in memvars])
         o_memopts = (mem and mem_string) and '--{0}'.format(mem_string) or ''
@@ -497,21 +454,16 @@ def qbatchDriver(**kwargs):
     elif system == 'container':
         header = CONTAINER_TEMPLATE.format(**vars())
 
-    # emit job scripts
-    job_scripts = []
-    mkdirp(script_folder)
+    else:
+        raise QbatchError(
+            "qbatch: error: unknown system {0}".format(system))
+
+    # emit job script text
+    scripts = []
     if system == "container":
-        script_lines = [
-            ''.join(task_list)
-        ]
-        scriptfile = os.path.join(script_folder, job_name + ".joblist")
-        metafile = os.path.join(script_folder, job_name + ".meta")
-        script = open(scriptfile, 'w', encoding="utf-8")
-        meta = open(metafile, 'w', encoding="utf-8")
-        script.write('\n'.join(script_lines))
-        meta.write(" ".join(sys.argv[1:-1]))
-        script.close()
-        meta.close()
+        scripts.append((job_name + ".joblist", ''.join(task_list)))
+        scripts.append((job_name + ".meta",
+                        kwargs.get('container_meta') or ''))
     else:
         if use_array:
             script_lines = [
@@ -530,18 +482,12 @@ def qbatchDriver(**kwargs):
                 ''.join(task_list),
                 'EOF']
 
-            scriptfile = os.path.join(script_folder, job_name + ".array")
-            script = open(scriptfile, 'w', encoding="utf-8")
-            script.write('\n'.join(script_lines))
+            text = '\n'.join(script_lines)
             if footer_commands:
-                script.write('\n')
-                script.write(footer_commands)
-            script.close()
-            job_scripts.append(scriptfile)
+                text += '\n' + footer_commands
+            scripts.append((job_name + ".array", text))
         else:
             for chunk in range(num_jobs):
-                scriptfile = os.path.join(
-                    script_folder, "{0}.{1}".format(job_name, chunk))
                 if len(task_list) == 1:
                     script_lines = [
                         header,
@@ -562,30 +508,62 @@ def qbatchDriver(**kwargs):
                         ''.join(task_list[chunk * chunk_size:chunk *
                                           chunk_size + chunk_size]),
                         'EOF']
-                script = open(scriptfile, 'w', encoding="utf-8")
-                script.write('\n'.join(script_lines))
+                text = '\n'.join(script_lines)
                 if footer_commands:
-                    script.write('\n')
-                    script.write(footer_commands)
-                script.close()
-                job_scripts.append(scriptfile)
+                    text += '\n' + footer_commands
+                scripts.append(("{0}.{1}".format(job_name, chunk), text))
 
-    # preflight checks
-    if SYSTEM == "slurm":
-        which('sbatch') or sys.exit("qbatch: error: QBATCH_SYSTEM set to slurm"
-                                    " but sbatch not found")
-        which('squeue') or sys.exit("qbatch: error: QBATCH_SYSTEM set to slurm"
-                                    " but squeue not found")
-    elif (SYSTEM == "pbs") or (SYSTEM == "sge"):
-        which('qsub') or sys.exit("qbatch: error: QBATCH_SYSTEM set to pbs/sge"
-                                  " but qsub not found")
-        which('qstat') or sys.exit("qbatch: error: QBATCH_SYSTEM set to"
-                                   " pbs/sge but qstat not found")
+    return scripts
 
-    which('parallel') or sys.exit("qbatch: error: gnu-parallel not found")
+
+def submit_scripts(scripts, kwargs):
+    """Submit phase: write job scripts to disk and hand them to the
+    scheduler. Owns every side effect. Returns the paths written.
+    """
+    _ensureVars()
+    system = kwargs.get('system')
+    script_folder = kwargs.get('script_folder', SCRIPT_FOLDER)
+    logdir = kwargs.get('logdir')
+    job_name = kwargs.get('jobname')
+    verbose = kwargs.get('verbose')
+    dry_run = kwargs.get('dryrun')
+
+    mkdirp(logdir)
+    mkdirp(script_folder)
+
+    written = []
+    for basename, text in scripts:
+        path = os.path.join(script_folder, basename)
+        with open(path, 'w', encoding="utf-8") as script:
+            script.write(text)
+        written.append(path)
+
+    if system == 'container':
+        # container scripts are collected by an external monitor,
+        # nothing to submit
+        return written
+
+    # preflight checks, only needed when jobs will actually be submitted
+    if not dry_run:
+        if system == "slurm":
+            if not which('sbatch'):
+                raise QbatchError("qbatch: error: system is slurm"
+                                  " but sbatch not found")
+            if not which('squeue'):
+                raise QbatchError("qbatch: error: system is slurm"
+                                  " but squeue not found")
+        elif (system == "pbs") or (system == "sge"):
+            if not which('qsub'):
+                raise QbatchError("qbatch: error: system is"
+                                  " pbs/sge but qsub not found")
+            if not which('qstat'):
+                raise QbatchError("qbatch: error: system is"
+                                  " pbs/sge but qstat not found")
+        if not which('parallel'):
+            raise QbatchError("qbatch: error: gnu-parallel not found")
 
     # execute the job script(s)
-    for script in job_scripts:
+    for script in written:
         os.chmod(script, os.stat(script).st_mode | stat.S_IXUSR)
         if system == 'sge' or system == 'pbs':
             if verbose:
@@ -594,8 +572,9 @@ def qbatchDriver(**kwargs):
                 continue
             return_code = subprocess.call(['qsub', script])
             if return_code:
-                sys.exit("qbatch: error: qsub call " +
-                         "returned error code {0}".format(return_code))
+                raise QbatchError(
+                    "qbatch: error: qsub call "
+                    "returned error code {0}".format(return_code))
         elif system == 'slurm':
             if verbose:
                 print("Running: sbatch {0}".format(script))
@@ -603,8 +582,9 @@ def qbatchDriver(**kwargs):
                 continue
             return_code = subprocess.call(['sbatch', script])
             if return_code:
-                sys.exit("qbatch: error: sbatch call " +
-                         "returned error code {0}".format(return_code))
+                raise QbatchError(
+                    "qbatch: error: sbatch call "
+                    "returned error code {0}".format(return_code))
         elif system == 'local':
             logfile = "{0}/{1}.log".format(logdir, job_name)
             if verbose:
@@ -613,8 +593,87 @@ def qbatchDriver(**kwargs):
                 continue
             return_code = run_command(script, logfile=logfile)
             if return_code:
-                sys.exit("qbatch: error: local run call " +
-                         "returned error code {0}".format(return_code))
+                raise QbatchError(
+                    "qbatch: error: local run call "
+                    "returned error code {0}".format(return_code))
+    return written
+
+
+def qbatchDriver(**kwargs):
+    _ensureVars()
+    command_file = kwargs.get('command_file')
+    job_name = kwargs.get('jobname')
+
+    # read in commands
+    if not kwargs.get('task_list'):
+        if command_file[0] == '--':
+            if (len(command_file) > 1):
+                task_list = [" ".join(command_file[1:])]
+                job_name = job_name or command_file[1]
+            else:
+                raise QbatchError(
+                    "qbatch: error: no command provided as last argument")
+        elif command_file[0] == '-':
+            with open(getattr(sys.stdin, 'buffer', sys.stdin).fileno(),
+                      encoding='utf8') as reader:
+                task_list = reader.readlines()
+            job_name = job_name or 'STDIN'
+        else:
+            task_list = []
+            for file in command_file:
+                if os.path.isfile(file):
+                    task_list = task_list + open(file,
+                                                 'r',
+                                                 encoding="utf-8").readlines()
+                    job_name = job_name or os.path.basename(file)
+                else:
+                    raise QbatchError(
+                        "qbatch: error: command_file {0}".format(file) +
+                        " does not exist or cannot be read")
+    else:
+        task_list = kwargs.get('task_list')
+        job_name = job_name or 'qbatchDriver'
+
+    # Drop commented out lines
+    task_list[:] = [x for x in task_list if not x.startswith('#')]
+
+    if len(task_list) == 0:
+        print("qbatch: warning: No jobs to submit, exiting", file=sys.stderr)
+        return
+
+    kwargs['task_list'] = task_list
+    kwargs['jobname'] = job_name
+    kwargs['logdir'] = kwargs.get('logdir').format(
+        workdir=kwargs.get('workdir'))
+
+    # resolve dependency patterns to job ids before the generate phase
+    system = kwargs.get('system')
+    depend_pattern = kwargs.get('depend')
+    if system == 'pbs':
+        try:
+            depend_array_ids, depend_job_ids = pbs_find_jobs(depend_pattern)
+        except Exception as e:
+            raise QbatchError(
+                "qbatch: error: Error matching"
+                " depend pattern {0}".format(str(e)))
+        if (depend_array_ids and depend_job_ids):
+            print("qbatch: warning: depdendencies on both regular and"
+                  " array jobs found, this is only supported on"
+                  " Torque 6.0.2 and above. You may get qsub error"
+                  " code 168.", file=sys.stderr)
+        kwargs['depend_array_ids'] = depend_array_ids
+        kwargs['depend_job_ids'] = depend_job_ids
+    elif system == 'slurm':
+        try:
+            kwargs['depend_job_ids'] = slurm_find_jobs(depend_pattern)
+        except Exception as e:
+            raise QbatchError(
+                "Error matching depend pattern {0}".format(str(e)))
+
+    kwargs['environ'] = dict(os.environ)
+
+    scripts = generate_scripts(kwargs)
+    submit_scripts(scripts, kwargs)
 
 
 def qbatchParser(args=None):
@@ -747,7 +806,10 @@ def qbatchParser(args=None):
     if not args.command_file:
         parser.print_usage()
         sys.exit("qbatch: error: no command file or command provided")
-    qbatchDriver(**vars(args))
+    try:
+        qbatchDriver(container_meta=" ".join(sys.argv[1:-1]), **vars(args))
+    except QbatchError as e:
+        sys.exit(str(e))
 
 
 if __name__ == "__main__":
