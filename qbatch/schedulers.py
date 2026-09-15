@@ -18,11 +18,15 @@ from textwrap import dedent
 
 from qbatch.errors import QbatchError
 
-# environment vars to ignore when copying the environment to the job script
+# environment vars to ignore when copying the environment to the job script.
+# The copied exports come before the ARRAY_IND= line, so every array index
+# variable that a template reads must be here, or qbatch run inside an array
+# job copies that job's index into the new one.
 IGNORE_ENV_VARS = [
     "PWD",
     "SGE_TASK_ID",
     "PBS_ARRAYID",
+    "SLURM_ARRAY_TASK_ID",
     "ARRAY_IND",
     "BASH_FUNC_*",
     "TMP",

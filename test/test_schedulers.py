@@ -4,6 +4,7 @@ Each test builds an adapter from a spec and checks what it returns. Only
 the run_command tests start a process (sh) and write to a tempdir.
 """
 
+import re
 import subprocess
 
 import pytest
@@ -206,6 +207,31 @@ def test_env_copied_skips_ignored_vars(make_spec):
     assert 'export KEEP="yes"' in text
     assert "PWD" not in text
     assert "SGE_TASK_ID" not in text
+
+
+@pytest.mark.parametrize("name", list(REGISTRY))
+def test_env_copied_never_replaces_the_array_index(make_spec, name):
+    # The copied exports come before the ARRAY_IND= line. If qbatch runs
+    # inside an array job, an exported index from that job would replace
+    # the index of the new job, and every element would run the same chunk.
+    tasks = [f"echo {i}\n" for i in range(4)]
+    header = build(make_spec, scheduler=name, task_list=tasks, chunk_size=2)[0][1]
+    match = re.search(r"^ARRAY_IND=\$(\w+)$", header, re.MULTILINE)
+    if match is None:
+        pytest.skip(f"{name} scripts read no array index variable")
+    index_var = match.group(1)
+
+    scripts = build(
+        make_spec,
+        scheduler=name,
+        task_list=tasks,
+        chunk_size=2,
+        env="copied",
+        environ={index_var: "3", "KEEP": "yes"},
+    )
+    text = scripts[0][1]
+    assert 'export KEEP="yes"' in text
+    assert f"export {index_var}=" not in text
 
 
 def test_adapter_sees_spec_changes_made_after_construction(make_spec):
