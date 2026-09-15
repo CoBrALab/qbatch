@@ -19,6 +19,7 @@ from qbatch.schedulers import (
     SgeScheduler,
     SlurmScheduler,
     compute_threads,
+    format_mem,
     run_command,
     scheduler_for,
 )
@@ -93,9 +94,32 @@ def test_pbs_memory_request(make_spec):
     assert "#PBS -l mem=4G,vmem=4G" in scripts[0][1]
 
 
-def test_no_memory_request_when_mem_is_zero(make_spec):
-    scripts = build(make_spec, scheduler="pbs", mem="0")
+@pytest.mark.parametrize("scheduler", ["pbs", "sge", "slurm"])
+@pytest.mark.parametrize("mem", [None, "0", "0G", "none"])
+def test_no_memory_request_when_mem_is_zero(make_spec, scheduler, mem):
+    scripts = build(make_spec, scheduler=scheduler, mem=mem)
     assert "mem=" not in scripts[0][1]
+
+
+@pytest.mark.parametrize(
+    "scheduler,line",
+    [
+        ("pbs", "#PBS -l mem=1536M"),
+        ("sge", "#$ -l mem=1536M"),
+        ("slurm", "#SBATCH --mem=1536M"),
+    ],
+)
+def test_memory_is_written_in_the_standard_form(make_spec, scheduler, line):
+    scripts = build(make_spec, scheduler=scheduler, mem="1.5gb")
+    assert line in scripts[0][1].splitlines()
+
+
+@pytest.mark.parametrize(
+    "mib,text",
+    [(1, "1M"), (1023, "1023M"), (1024, "1G"), (1536, "1536M"), (1048576, "1024G")],
+)
+def test_format_mem_uses_whole_gib_or_mib(mib, text):
+    assert format_mem(mib) == text
 
 
 def test_sge_hold_jid_from_patterns(make_spec):

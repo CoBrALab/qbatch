@@ -10,9 +10,10 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass, field, fields
+from decimal import ROUND_CEILING, Decimal
 
 from qbatch.errors import QbatchError
-from qbatch.schedulers import REGISTRY
+from qbatch.schedulers import REGISTRY, format_mem
 
 SCHEDULERS = tuple(REGISTRY)
 ENV_MODES = ("copied", "batch", "none")
@@ -23,6 +24,11 @@ CORES_PATTERN = r"^([-+]?\d+|^\d+%)$"
 # {workdir} is substituted when the spec is built
 DEFAULT_LOGDIR = "{workdir}/logs"
 
+# a number and an optional unit, case does not matter: 4G, 1.5gb, 512MiB
+MEM_PATTERN = re.compile(r"^(\d+(?:\.\d+)?)\s*(?:([kmgtp])i?b?)?$", re.IGNORECASE)
+# each unit as a power of 1024 of a MiB; a plain number is GiB
+MEM_POWERS = {"k": -1, "m": 0, "g": 1, "t": 2, "p": 3}
+
 # argparse dest names that differ from the JobSpec field they set
 _ARGPARSE_NAMES = {
     "chunksize": "chunk_size",
@@ -30,6 +36,33 @@ _ARGPARSE_NAMES = {
     "dryrun": "dry_run",
     "system": "scheduler",
 }
+
+
+def parse_mem(text):
+    """Read a --mem value. Returns (mib, warning): mib is None for no
+    request, and warning is None unless the value changed."""
+    text = "" if text is None else str(text).strip()
+    if text.lower() in ("", "none"):
+        return None, None
+    match = MEM_PATTERN.match(text)
+    if not match:
+        raise QbatchError(
+            f"qbatch: error: cannot read --mem {text}, expected a number and"
+            " a unit, for example 4G or 1536M"
+        )
+    number, unit = match.groups()
+    exact = Decimal(number) * Decimal(1024) ** MEM_POWERS[(unit or "g").lower()]
+    if exact == 0:
+        return None, None
+    mib = int(exact.to_integral_value(rounding=ROUND_CEILING))
+    if unit is None:
+        return (
+            mib,
+            f"qbatch: warning: --mem {text} has no unit, using {format_mem(mib)}",
+        )
+    if mib != exact:
+        return mib, f"qbatch: warning: --mem {text} rounded up to {format_mem(mib)}"
+    return mib, None
 
 
 def _env_ppj():
@@ -65,7 +98,7 @@ class JobSpec:
     sge_pe: str = field(default_factory=lambda: os.environ.get("QBATCH_SGE_PE", "smp"))
     pbs_nodes_spec: list[str] | None = None
     walltime: str | None = None
-    mem: str = field(default_factory=lambda: os.environ.get("QBATCH_MEM", "0"))
+    mem: str | None = field(default_factory=lambda: os.environ.get("QBATCH_MEM"))
     memvars: str = field(
         default_factory=lambda: os.environ.get("QBATCH_MEMVARS", "mem")
     )
@@ -97,6 +130,10 @@ class JobSpec:
     verbose: bool = False
     dry_run: bool = False
 
+    # set by __post_init__, not by the caller
+    mem_mib: int | None = field(init=False, default=None)
+    warnings: list[str] = field(init=False, default_factory=list, repr=False)
+
     def __post_init__(self):
         if self.scheduler not in SCHEDULERS:
             raise QbatchError(
@@ -127,6 +164,9 @@ class JobSpec:
                 "qbatch: error: cores must be an integer or integer"
                 f" percentage, got {self.cores}"
             )
+        self.mem_mib, warning = parse_mem(self.mem)
+        if warning:
+            self.warnings.append(warning)
         self.logdir = self.logdir.format(workdir=self.workdir)
 
     @classmethod
@@ -138,7 +178,7 @@ class JobSpec:
         migrate with qbatchDriver(JobSpec.from_kwargs(**options)).
         """
         values = {_ARGPARSE_NAMES.get(k, k): v for k, v in kwargs.items()}
-        unknown = set(values) - {f.name for f in fields(cls)}
+        unknown = set(values) - {f.name for f in fields(cls) if f.init}
         if unknown:
             raise QbatchError(
                 "qbatch: error: unknown option(s) {}".format(", ".join(sorted(unknown)))

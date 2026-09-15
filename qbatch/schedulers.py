@@ -144,6 +144,13 @@ def compute_threads(spec, most_tasks=None):
     return int(ppj) // cores
 
 
+def format_mem(mib):
+    """Write a memory size that every scheduler reads the same way: whole
+    GiB or MiB, with an uppercase unit. SGE reads a lowercase unit as a
+    power of 1000, and rejects a trailing B."""
+    return f"{mib // 1024}G" if mib % 1024 == 0 else f"{mib}M"
+
+
 class Scheduler:
     """Base adapter. Holds the spec; methods read it when called, so
     changes the driver makes to the spec after construction are seen."""
@@ -297,9 +304,10 @@ class Scheduler:
 
     def _mem_string(self):
         """The memory request for every --memvars variable, or nothing."""
-        mem = self.spec.mem != "0" and self.spec.mem or None
-        mem_string = ",".join([f"{var}={mem}" for var in self.spec.memvars.split(",")])
-        return (mem and mem_string) or ""
+        if self.spec.mem_mib is None:
+            return ""
+        mem = format_mem(self.spec.mem_mib)
+        return ",".join(f"{var}={mem}" for var in self.spec.memvars.split(","))
 
 
 class PbsScheduler(Scheduler):
