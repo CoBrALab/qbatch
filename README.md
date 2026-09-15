@@ -187,7 +187,7 @@ $ parallel echo process.sh {} ::: *.dat | qbatch -
 $ qbatch -b local -j12 commands.txt
 
 # Many options don't make sense locally: chunking, individual vs array, nodes,
-# ppj, highmem, and afterok are ignored
+# ppj, --mem, and --depend are ignored
 ```
 
 A python script example:
