@@ -36,14 +36,6 @@ def _env_ppj():
     return int(os.environ.get("QBATCH_PPJ", "1"))
 
 
-def _env_chunk_size():
-    return int(os.environ.get("QBATCH_CHUNKSIZE", os.environ.get("QBATCH_PPJ", "1")))
-
-
-def _env_cores():
-    return os.environ.get("QBATCH_CORES", os.environ.get("QBATCH_PPJ", "1"))
-
-
 def _env_options():
     return [os.environ["QBATCH_OPTIONS"]] if os.environ.get("QBATCH_OPTIONS") else []
 
@@ -58,8 +50,9 @@ class JobSpec:
     job_name: str | None = None
 
     # how it is divided into chunks
-    chunk_size: int = field(default_factory=_env_chunk_size)
-    cores: int | str = field(default_factory=_env_cores)
+    # None means QBATCH_CHUNKSIZE or QBATCH_CORES, else ppj
+    chunk_size: int | None = None
+    cores: int | str | None = None
     ppj: int = field(default_factory=_env_ppj)
     individual: bool = False
 
@@ -121,6 +114,10 @@ class JobSpec:
             raise QbatchError(
                 f"qbatch: error: ppj must be a positive integer, got {self.ppj}"
             )
+        if self.chunk_size is None:
+            self.chunk_size = int(os.environ.get("QBATCH_CHUNKSIZE", self.ppj))
+        if self.cores is None:
+            self.cores = os.environ.get("QBATCH_CORES", int(self.ppj))
         if int(self.chunk_size) < 0:
             raise QbatchError(
                 f"qbatch: error: chunk size cannot be negative, got {self.chunk_size}"
