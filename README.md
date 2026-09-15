@@ -78,7 +78,11 @@ optional arguments:
   -h, --help            show this help message and exit
   -w WALLTIME, --walltime WALLTIME
                         Maximum walltime for an array job element or
-                        individual job (default: None)
+                        individual job: seconds (3600), [[HH:]MM:]SS
+                        (1:00:00, or 10:00 for 10 minutes), D-HH:MM:SS
+                        (1-12:00:00), or units d, h, m and s (1d12h, 2h30m,
+                        90m). A number with no unit is seconds. To not set a
+                        walltime, give 0 or none (default: None)
   -c CHUNKSIZE, --chunksize CHUNKSIZE
                         Number of commands from the command list that are
                         wrapped into each job (default: $QBATCH_CHUNKSIZE,
@@ -241,6 +245,24 @@ on the scheduler and on the variables in ``--memvars``:
 To give a value that qbatch does not write, such as Slurm's ``--mem=0`` (all
 the memory on the node), use ``-o``.
 
+## Walltime requests
+
+``--walltime`` takes any of these forms, and qbatch writes the same limit for
+every scheduler:
+
+| Form | Examples | Meaning |
+|---|---|---|
+| seconds | ``3600``, ``90.5`` | a number with no unit is seconds |
+| ``[[HH:]MM:]SS`` | ``1:00:00``, ``10:00``, ``36:00:00`` | two fields are minutes and seconds |
+| ``D-HH[:MM[:SS]]`` | ``1-12``, ``1-12:30``, ``1-12:30:00`` | with a day, two fields are hours and minutes, as in Slurm |
+| units ``d h m s`` | ``1d12h``, ``2h30m``, ``90m``, ``1.5h`` | in this order, in any case |
+
+Fields can be larger than 59 (``90:00`` is 90 minutes). ``0`` or ``none``
+sets no walltime. qbatch writes ``H:MM:SS`` (for example ``36:00:00``) for PBS,
+SGE and Slurm, and stops with an error if it cannot read the value. It prints
+a warning when it assumes seconds for a number with no unit, or when it rounds
+the value up: to whole seconds, or to whole minutes for Slurm.
+
 ## Very large task lists
 
 An array job has one script, and that script holds the whole task list. Each
@@ -292,6 +314,17 @@ these before you upgrade:
 - A value qbatch cannot read, such as ``4GiBs``, is now an error.
 - ``JobSpec.mem`` defaults to ``None``, not ``"0"``, and the parsed value is
   in ``JobSpec.mem_mib``.
+
+``--walltime`` has one format for all schedulers (see "Walltime requests"):
+
+- A walltime that qbatch cannot read, such as ``1::1`` or ``1.5:00:00``, is
+  now an error. In 2.x it went to the scheduler, which read it in its own way
+  or rejected it.
+- A Slurm walltime is rounded up to whole minutes. In 2.x a number of seconds
+  was rounded to the nearest minute, so ``--walltime 89`` gave one minute and
+  ``--walltime 29`` wrote ``--time=0``, which Slurm reads as no limit.
+- ``0`` and ``none`` now set no walltime.
+- The parsed value is in ``JobSpec.walltime_seconds``.
 
 Errors are now raised as ``qbatch.QbatchError`` rather than exiting the
 process, so a python caller can catch them. On the command line, an error

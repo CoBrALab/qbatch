@@ -9,7 +9,7 @@ import sys
 from importlib.metadata import version
 
 from qbatch.errors import QbatchError
-from qbatch.schedulers import scheduler_for
+from qbatch.schedulers import format_hms, scheduler_for
 from qbatch.spec import CORES_PATTERN, DEFAULT_LOGDIR, SCHEDULERS, JobSpec
 
 
@@ -123,6 +123,15 @@ def qbatchDriver(spec):
 
     scheduler = scheduler_for(spec)
 
+    resolution = scheduler.walltime_resolution
+    if spec.walltime_seconds and spec.walltime_seconds % resolution:
+        print(
+            f"qbatch: warning: {scheduler.name} counts whole minutes, --walltime"
+            f" {spec.walltime} rounded up to"
+            f" {format_hms(spec.walltime_seconds, resolution)}",
+            file=sys.stderr,
+        )
+
     # resolve dependency patterns to job ids before the generate phase
     try:
         spec.depend_array_ids, spec.depend_job_ids = scheduler.find_dependencies()
@@ -169,7 +178,11 @@ def qbatchParser(args=None):
     parser.add_argument(
         "-w",
         "--walltime",
-        help="""Maximum walltime for an array job element or individual job""",
+        help="""Maximum walltime for an array job element or individual job:
+        seconds (3600), [[HH:]MM:]SS (1:00:00, or 10:00 for 10 minutes),
+        D-HH:MM:SS (1-12:00:00), or units d, h, m and s (1d12h, 2h30m, 90m).
+        A number with no unit is seconds. To not set a walltime, give 0 or
+        none""",
     )
     parser.add_argument(
         "-c",

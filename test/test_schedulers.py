@@ -19,6 +19,7 @@ from qbatch.schedulers import (
     SgeScheduler,
     SlurmScheduler,
     compute_threads,
+    format_hms,
     format_mem,
     run_command,
     scheduler_for,
@@ -132,14 +133,56 @@ def test_sge_parallel_environment(make_spec):
     assert "#$ -pe smp 8" in scripts[0][1]
 
 
-def test_slurm_walltime_colons_passthrough(make_spec):
-    scripts = build(make_spec, scheduler="slurm", walltime="1:00:00")
-    assert "#SBATCH --time=1:00:00" in scripts[0][1]
+@pytest.mark.parametrize(
+    "scheduler,line",
+    [
+        ("pbs", "#PBS -l walltime=36:00:00"),
+        ("sge", "#$ -l h_rt=36:00:00"),
+        ("slurm", "#SBATCH --time=36:00:00"),
+    ],
+)
+def test_walltime_is_written_as_hms(make_spec, scheduler, line):
+    scripts = build(make_spec, scheduler=scheduler, walltime="1-12")
+    assert line in scripts[0][1].splitlines()
 
 
-def test_slurm_walltime_seconds_to_minutes(make_spec):
-    scripts = build(make_spec, scheduler="slurm", walltime="3600")
-    assert "#SBATCH --time=60" in scripts[0][1]
+@pytest.mark.parametrize(
+    "walltime,line",
+    [
+        ("10:00", "#SBATCH --time=0:10:00"),
+        ("3600", "#SBATCH --time=1:00:00"),
+        # 2.x wrote --time=0 here, which Slurm reads as no time limit
+        ("29", "#SBATCH --time=0:01:00"),
+        ("1:00:30", "#SBATCH --time=1:01:00"),
+    ],
+)
+def test_slurm_walltime_is_rounded_up_to_whole_minutes(make_spec, walltime, line):
+    scripts = build(make_spec, scheduler="slurm", walltime=walltime)
+    assert line in scripts[0][1].splitlines()
+
+
+@pytest.mark.parametrize("scheduler", ["pbs", "sge", "slurm"])
+@pytest.mark.parametrize("walltime", [None, "0", "0:00:00", "none"])
+def test_no_walltime_request_when_walltime_is_zero(make_spec, scheduler, walltime):
+    text = build(make_spec, scheduler=scheduler, walltime=walltime)[0][1]
+    assert not re.search(r"walltime=|h_rt=|--time=", text)
+
+
+@pytest.mark.parametrize(
+    "seconds,resolution,text",
+    [
+        (1, 1, "0:00:01"),
+        (59, 1, "0:00:59"),
+        (3600, 1, "1:00:00"),
+        (3661, 1, "1:01:01"),
+        (129600, 1, "36:00:00"),
+        (1, 60, "0:01:00"),
+        (60, 60, "0:01:00"),
+        (61, 60, "0:02:00"),
+    ],
+)
+def test_format_hms(seconds, resolution, text):
+    assert format_hms(seconds, resolution) == text
 
 
 def test_slurm_dependency_ids(make_spec):

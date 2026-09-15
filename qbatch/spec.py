@@ -13,7 +13,7 @@ from dataclasses import dataclass, field, fields
 from decimal import ROUND_CEILING, Decimal
 
 from qbatch.errors import QbatchError
-from qbatch.schedulers import REGISTRY, format_mem
+from qbatch.schedulers import REGISTRY, format_hms, format_mem
 
 SCHEDULERS = tuple(REGISTRY)
 ENV_MODES = ("copied", "batch", "none")
@@ -28,6 +28,18 @@ DEFAULT_LOGDIR = "{workdir}/logs"
 MEM_PATTERN = re.compile(r"^(\d+(?:\.\d+)?)\s*(?:([kmgtp])i?b?)?$", re.IGNORECASE)
 # each unit as a power of 1024 of a MiB; a plain number is GiB
 MEM_POWERS = {"k": -1, "m": 0, "g": 1, "t": 2, "p": 3}
+
+# walltime forms: a number of seconds
+WALLTIME_SECONDS = re.compile(r"^\d+(?:\.\d+)?$")
+# MM:SS or HH:MM:SS
+WALLTIME_HMS = re.compile(r"^(?:(\d+):)?(\d+):(\d+)$")
+# the Slurm day forms D-HH, D-HH:MM and D-HH:MM:SS
+WALLTIME_DAYS = re.compile(r"^(\d+)-(\d+)(?::(\d+)(?::(\d+))?)?$")
+# 1d12h, 2h30m, 90m, 1.5h: at least one part, in this order, in any case
+_PART = r"(?:(\d+(?:\.\d+)?)\s*{}\s*)?"
+WALLTIME_UNITS = re.compile(
+    "^" + "".join(_PART.format(unit) for unit in "dhms") + "$", re.IGNORECASE
+)
 
 # argparse dest names that differ from the JobSpec field they set
 _ARGPARSE_NAMES = {
@@ -63,6 +75,43 @@ def parse_mem(text):
     if mib != exact:
         return mib, f"qbatch: warning: --mem {text} rounded up to {format_mem(mib)}"
     return mib, None
+
+
+def parse_walltime(text):
+    """Read a --walltime value. Returns (seconds, warning): seconds is None
+    for no limit, and warning is None unless the value changed."""
+    text = "" if text is None else str(text).strip()
+    if text.lower() in ("", "none"):
+        return None, None
+    if WALLTIME_SECONDS.match(text):
+        exact = Decimal(text)
+    elif match := WALLTIME_HMS.match(text):
+        hours, minutes, seconds = (int(g or 0) for g in match.groups())
+        exact = Decimal(hours * 3600 + minutes * 60 + seconds)
+    elif match := WALLTIME_DAYS.match(text):
+        days, hours, minutes, seconds = (int(g or 0) for g in match.groups())
+        exact = Decimal(days * 86400 + hours * 3600 + minutes * 60 + seconds)
+    elif (match := WALLTIME_UNITS.match(text)) and any(match.groups()):
+        days, hours, minutes, seconds = (Decimal(g or 0) for g in match.groups())
+        exact = days * 86400 + hours * 3600 + minutes * 60 + seconds
+    else:
+        raise QbatchError(
+            f"qbatch: error: cannot read --walltime {text}, expected seconds,"
+            " [[HH:]MM:]SS, D-HH:MM:SS, or a form such as 2h30m"
+        )
+    if exact == 0:
+        return None, None
+    seconds = int(exact.to_integral_value(rounding=ROUND_CEILING))
+    if WALLTIME_SECONDS.match(text):
+        return seconds, (
+            f"qbatch: warning: --walltime {text} has no unit, using seconds"
+            f" ({format_hms(seconds)})"
+        )
+    if seconds != exact:
+        return seconds, (
+            f"qbatch: warning: --walltime {text} rounded up to {format_hms(seconds)}"
+        )
+    return seconds, None
 
 
 def _env_ppj():
@@ -132,6 +181,7 @@ class JobSpec:
 
     # set by __post_init__, not by the caller
     mem_mib: int | None = field(init=False, default=None)
+    walltime_seconds: int | None = field(init=False, default=None)
     warnings: list[str] = field(init=False, default_factory=list, repr=False)
 
     def __post_init__(self):
@@ -164,9 +214,9 @@ class JobSpec:
                 "qbatch: error: cores must be an integer or integer"
                 f" percentage, got {self.cores}"
             )
-        self.mem_mib, warning = parse_mem(self.mem)
-        if warning:
-            self.warnings.append(warning)
+        self.mem_mib, mem_warning = parse_mem(self.mem)
+        self.walltime_seconds, walltime_warning = parse_walltime(self.walltime)
+        self.warnings.extend(w for w in (mem_warning, walltime_warning) if w)
         self.logdir = self.logdir.format(workdir=self.workdir)
 
     @classmethod
