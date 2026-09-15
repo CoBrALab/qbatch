@@ -1,8 +1,10 @@
 """Tests for the scheduler adapters.
 
-Each test builds an adapter from a spec and checks what it returns. None
-of them need a tempdir, entries on PATH, or the installed command.
+Each test builds an adapter from a spec and checks what it returns. Only
+the run_command tests start a process (sh) and write to a tempdir.
 """
+
+import subprocess
 
 import pytest
 
@@ -16,6 +18,7 @@ from qbatch.schedulers import (
     SgeScheduler,
     SlurmScheduler,
     compute_threads,
+    run_command,
     scheduler_for,
 )
 
@@ -357,3 +360,45 @@ def test_container_submit_does_nothing(make_spec, monkeypatch):
     calls = fake_call(monkeypatch, 0)
     scheduler_for(make_spec(scheduler="container")).submit("/scripts/testjob.meta")
     assert calls == []
+
+
+# ------------------------------------------------------------- run_command
+
+
+def test_run_command_prints_and_logs_the_output(tmp_path, capsys):
+    log = tmp_path / "run.log"
+    assert run_command(["sh", "-c", "echo one; echo two"], logfile=str(log)) == 0
+    assert capsys.readouterr().out == "one\ntwo\n"
+    assert log.read_text() == "one\ntwo\n"
+
+
+def test_run_command_returns_the_exit_code():
+    assert run_command(["sh", "-c", "exit 3"]) == 3
+
+
+def test_run_command_stops_at_end_of_output_not_at_exit(tmp_path, capsys):
+    # The child closes its output, then runs for a moment longer. Reading
+    # must stop at the end of the output, without printing empty lines
+    # while the child is still running.
+    log = tmp_path / "run.log"
+    command = ["sh", "-c", "echo hi; exec >/dev/null 2>&1; sleep 0.3"]
+    assert run_command(command, logfile=str(log)) == 0
+    assert capsys.readouterr().out == "hi\n"
+    assert log.read_text() == "hi\n"
+
+
+def test_run_command_keeps_output_after_a_blank_line(tmp_path, capsys, monkeypatch):
+    # The child exits before its output is read. Output after a blank
+    # line must not be lost.
+    real_popen = subprocess.Popen
+
+    def exited_popen(*args, **kwargs):
+        process = real_popen(*args, **kwargs)
+        process.wait()
+        return process
+
+    monkeypatch.setattr(schedulers.subprocess, "Popen", exited_popen)
+    log = tmp_path / "run.log"
+    assert run_command(["sh", "-c", "printf 'a\\n\\nb\\n'"], logfile=str(log)) == 0
+    assert capsys.readouterr().out == "a\n\nb\n"
+    assert log.read_text() == "a\nb\n"
