@@ -161,20 +161,21 @@ def qbatchParser(args=None):
     parser.add_argument(
         "-c",
         "--chunksize",
-        default=defaults.chunk_size,
+        default=argparse.SUPPRESS,
         type=int,
         help="""Number of commands from the command list that are wrapped into
-        each job""",
+        each job (default: $QBATCH_CHUNKSIZE, else --ppj)""",
     )
     parser.add_argument(
         "-j",
         "--cores",
-        default=defaults.cores,
+        default=argparse.SUPPRESS,
         type=int_or_percent,
         help="""Number of commands each job runs in parallel. If the chunk size
         (-c) is smaller than -j then only chunk size commands will run in
         parallel. This option can also be expressed as a percentage (e.g.
-        100%%) of the total available cores""",
+        100%%) of the total available cores (default: $QBATCH_CORES, else
+        --ppj)""",
     )
     parser.add_argument(
         "--ppj",

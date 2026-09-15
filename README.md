@@ -81,13 +81,15 @@ optional arguments:
                         individual job (default: None)
   -c CHUNKSIZE, --chunksize CHUNKSIZE
                         Number of commands from the command list that are
-                        wrapped into each job (default: 1)
+                        wrapped into each job (default: $QBATCH_CHUNKSIZE,
+                        else --ppj)
   -j CORES, --cores CORES
                         Number of commands each job runs in parallel. If the
                         chunk size (-c) is smaller than -j then only chunk
                         size commands will run in parallel. This option can
                         also be expressed as a percentage (e.g. 100%) of the
-                        total available cores (default: 1)
+                        total available cores (default: $QBATCH_CORES, else
+                        --ppj)
   --ppj PPJ             Requested number of processors per job (aka ppn on
                         PBS, slots on SGE, cpus per task on SLURM). Cores can
                         be over subscribed if -j is larger than --ppj (useful
@@ -231,6 +233,12 @@ Four options are spelled differently as spec fields: ``jobname`` is
 ``job_name``, ``dryrun`` is ``dry_run``, ``chunksize`` is ``chunk_size``, and
 ``system`` is ``scheduler``. ``from_kwargs`` translates all four for you, and
 rejects names it does not recognise instead of silently ignoring them.
+
+``-c`` and ``-j`` now follow ``--ppj``. When neither the option nor
+``QBATCH_CHUNKSIZE`` (or ``QBATCH_CORES``) is set, the chunk size (or the
+number of parallel commands) is the ppj value, so ``--ppj 8`` alone packs and
+runs 8 commands per job. Before 3.0 these fell back to ``QBATCH_PPJ`` but
+ignored ``--ppj``. Add ``-c 1 -j 1`` to keep the old result.
 
 Errors are now raised as ``qbatch.QbatchError`` rather than exiting the
 process, so a python caller can catch them. The command line behaviour is

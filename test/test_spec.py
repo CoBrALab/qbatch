@@ -18,7 +18,22 @@ def test_defaults_read_from_environment(monkeypatch):
     assert s.mem == "8G"
     # chunk size and cores fall back to ppj
     assert s.chunk_size == 12
-    assert s.cores == "12"
+    assert s.cores == 12
+
+
+def test_chunk_size_and_cores_follow_an_explicit_ppj(monkeypatch):
+    monkeypatch.delenv("QBATCH_CHUNKSIZE", raising=False)
+    monkeypatch.delenv("QBATCH_CORES", raising=False)
+    monkeypatch.setenv("QBATCH_PPJ", "2")
+    s = JobSpec(ppj=8)
+    assert (s.chunk_size, s.cores) == (8, 8)
+
+
+def test_environment_chunk_size_and_cores_win_over_ppj(monkeypatch):
+    monkeypatch.setenv("QBATCH_CHUNKSIZE", "3")
+    monkeypatch.setenv("QBATCH_CORES", "50%")
+    s = JobSpec(ppj=8)
+    assert (s.chunk_size, s.cores) == (3, "50%")
 
 
 def test_each_construction_rereads_the_environment(monkeypatch):
