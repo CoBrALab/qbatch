@@ -228,6 +228,27 @@ def test_compute_threads_accepts_int_or_percent(make_spec, cores, expected):
     assert compute_threads(make_spec(ppj=8, cores=cores)) == expected
 
 
+@pytest.mark.parametrize(
+    "tasks,chunk_size,expected",
+    [
+        (10, 40, 8),  # one job with 10 tasks runs 10 at once, not 40
+        (1, 40, 80),  # a single task gets every processor
+        (80, 20, 4),  # array elements hold 20 tasks
+        (80, 40, 2),  # full jobs are unchanged
+    ],
+)
+def test_threads_follow_the_tasks_a_job_can_run(make_spec, tasks, chunk_size, expected):
+    scripts = build(
+        make_spec,
+        scheduler="slurm",
+        task_list=[f"echo {i}\n" for i in range(tasks)],
+        chunk_size=chunk_size,
+        cores=40,
+        ppj=80,
+    )
+    assert f"export THREADS_PER_COMMAND={expected}" in scripts[0][1]
+
+
 def test_cores_as_int_reaches_the_script(make_spec):
     scripts = build(
         make_spec, scheduler="sge", cores=4, ppj=4, task_list=["a\n", "b\n"]

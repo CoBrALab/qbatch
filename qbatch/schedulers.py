@@ -127,13 +127,17 @@ def run_command(command, logfile=None):
     return process.wait()
 
 
-def compute_threads(spec):
-    """Computes either number cores per job available"""
+def compute_threads(spec, most_tasks=None):
+    """Computes either number cores per job available. most_tasks is the
+    largest number of tasks one job holds: a job cannot run more at once."""
     ppj = spec.ppj or 1
     cores = spec.cores
     if isinstance(cores, str) and cores.endswith("%"):
         return math.floor(int(ppj) * float(cores.strip("%")) / 100)
-    return int(ppj) // int(cores)
+    cores = int(cores)
+    if most_tasks and cores > most_tasks:
+        cores = most_tasks
+    return int(ppj) // cores
 
 
 class Scheduler:
@@ -187,6 +191,10 @@ class Scheduler:
         else:
             num_jobs = math.ceil(len(task_list) / float(chunk_size))
 
+        # the last array element can hold fewer tasks than the
+        # others, but shares their script, so it keeps their thread count
+        threads = compute_threads(spec, min(chunk_size, len(task_list)))
+
         # placeholders every scheduler template shares
         common = {
             "shell": spec.shell,
@@ -209,7 +217,7 @@ class Scheduler:
                 ),
                 f"CHUNK_SIZE={chunk_size}",
                 f"CORES={spec.cores}",
-                f"export THREADS_PER_COMMAND={compute_threads(spec)}",
+                f"export THREADS_PER_COMMAND={threads}",
                 (
                     'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
                     "+$(( ${CHUNK_SIZE} - 1 ))p\" << 'EOF' | parallel -j${CORES}"
@@ -228,7 +236,7 @@ class Scheduler:
                 if len(task_list) == 1:
                     script_lines = [
                         header,
-                        f"export THREADS_PER_COMMAND={compute_threads(spec)}",
+                        f"export THREADS_PER_COMMAND={threads}",
                         "".join(task_list),
                     ]
                 else:
@@ -240,7 +248,7 @@ class Scheduler:
                             " exit 1; }"
                         ),
                         f"CORES={spec.cores}",
-                        f"export THREADS_PER_COMMAND={compute_threads(spec)}",
+                        f"export THREADS_PER_COMMAND={threads}",
                         "parallel -j${CORES} --tag --line-buffer --compress << 'EOF'",
                         "".join(
                             task_list[
