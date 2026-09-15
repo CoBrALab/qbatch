@@ -314,6 +314,20 @@ def test_missing_binary_message_names_the_real_system(make_spec, tmp_path, monke
     assert str(excinfo.value) == "qbatch: error: system is sge but qsub not found"
 
 
+def test_submit_rejects_parallel_that_is_not_gnu(make_spec, tmp_path, monkeypatch):
+    # moreutils parallel does not know --version and prints its usage
+    fake = tmp_path / "bin" / "parallel"
+    fake.parent.mkdir()
+    fake.write_text(
+        "#!/bin/sh\necho 'parallel [OPTIONS] command -- arguments'\nexit 1\n"
+    )
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", str(fake.parent))
+    with pytest.raises(QbatchError) as excinfo:
+        submit_one(make_spec, tmp_path, scheduler="local")
+    assert str(excinfo.value) == "qbatch: error: parallel on PATH is not GNU parallel"
+
+
 def test_dry_run_needs_no_scheduler_binaries(make_spec, tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", "")
     written = submit_one(make_spec, tmp_path, scheduler="slurm", dry_run=True)

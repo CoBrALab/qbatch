@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import stat
+import subprocess
 import sys
 from importlib.metadata import version
 
@@ -57,6 +58,16 @@ def submit_scripts(scripts, spec):
                 raise QbatchError(
                     f"qbatch: error: system is {scheduler.name} but {binary} not found"
                 )
+        # moreutils installs a different program with the same name
+        if "parallel" in scheduler.required_binaries:
+            result = subprocess.run(
+                ["parallel", "--version"],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                check=False,
+            )
+            if b"GNU parallel" not in result.stdout:
+                raise QbatchError("qbatch: error: parallel on PATH is not GNU parallel")
 
     # execute the job script(s)
     for script in written:
