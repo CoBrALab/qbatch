@@ -241,8 +241,8 @@ runs 8 commands per job. Before 3.0 these fell back to ``QBATCH_PPJ`` but
 ignored ``--ppj``. Add ``-c 1 -j 1`` to keep the old result.
 
 Errors are now raised as ``qbatch.QbatchError`` rather than exiting the
-process, so a python caller can catch them. The command line behaviour is
-unchanged.
+process, so a python caller can catch them. On the command line, an error
+still prints the same message and exits.
 
 The undocumented helpers in ``qbatch.qbatch`` are gone. ``compute_threads``
 moved to ``qbatch.schedulers`` and takes a ``JobSpec``; ``pbs_find_jobs`` and
