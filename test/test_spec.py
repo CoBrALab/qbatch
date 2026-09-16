@@ -3,7 +3,7 @@
 import pytest
 
 from qbatch.schedulers import REGISTRY
-from qbatch.spec import SCHEDULERS, JobSpec, QbatchError, parse_mem
+from qbatch.spec import SCHEDULERS, JobSpec, QbatchError, parse_mem, parse_walltime
 
 
 def test_defaults_read_from_environment(monkeypatch):
@@ -62,7 +62,7 @@ def test_from_kwargs_maps_argparse_names():
     assert (s.job_name, s.dry_run, s.chunk_size, s.scheduler) == ("j", True, 7, "pbs")
 
 
-@pytest.mark.parametrize("name", ["mem_mib", "warnings"])
+@pytest.mark.parametrize("name", ["mem_mib", "walltime_seconds", "warnings"])
 def test_from_kwargs_rejects_fields_set_by_the_spec(name):
     with pytest.raises(QbatchError) as excinfo:
         JobSpec.from_kwargs(**{name: 1})
@@ -171,3 +171,91 @@ def test_bad_memory_from_the_environment_is_an_error(monkeypatch):
     monkeypatch.setenv("QBATCH_MEM", "lots")
     with pytest.raises(QbatchError):
         JobSpec()
+
+
+# ---------------------------------------------------------------- walltime
+
+
+@pytest.mark.parametrize(
+    "text,seconds",
+    [
+        ("3600", 3600),
+        (3600, 3600),
+        ("90.5", 91),
+        # two fields are MM:SS, but with a day they are HH:MM, as in Slurm
+        ("12:30", 750),
+        ("1-12:30", 131400),
+        ("1:00:00", 3600),
+        ("36:00:00", 129600),
+        ("90:00", 5400),
+        ("0:90:00", 5400),
+        ("1-12", 129600),
+        ("1-12:30:15", 131415),
+        ("2h30m", 9000),
+        ("90m", 5400),
+        ("1d12h", 129600),
+        ("1h 30m", 5400),
+        ("1.5h", 5400),
+        ("2H", 7200),
+        ("45s", 45),
+        ("1.5s", 2),
+    ],
+)
+def test_parse_walltime_reads_every_form(text, seconds):
+    assert parse_walltime(text)[0] == seconds
+
+
+@pytest.mark.parametrize(
+    "text", [None, "", "none", "NONE", "0", "0:00:00", "0h", "0-0", "0.0"]
+)
+def test_parse_walltime_zero_and_none_mean_no_limit(text):
+    assert parse_walltime(text) == (None, None)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "1::1",
+        "1.5:00:00",
+        "1-",
+        "2m1h",
+        "abc",
+        "1:2:3:4",
+        "-1",
+        "h",
+        ":30",
+        "1:30:",
+        "10:00.5",
+        "1-2-3",
+    ],
+)
+def test_parse_walltime_rejects_what_it_cannot_read(text):
+    with pytest.raises(QbatchError) as excinfo:
+        parse_walltime(text)
+    assert str(excinfo.value).startswith(
+        f"qbatch: error: cannot read --walltime {text}"
+    )
+
+
+@pytest.mark.parametrize(
+    "text,warning",
+    [
+        ("1:00:00", None),
+        ("1.5h", None),
+        (
+            "3600",
+            "qbatch: warning: --walltime 3600 has no unit, using seconds (1:00:00)",
+        ),
+        ("1.5s", "qbatch: warning: --walltime 1.5s rounded up to 0:00:02"),
+    ],
+)
+def test_parse_walltime_warns_only_when_the_value_changes(text, warning):
+    assert parse_walltime(text)[1] == warning
+
+
+def test_spec_collects_memory_and_walltime_warnings():
+    s = JobSpec(mem="4", walltime="60")
+    assert s.warnings == [
+        "qbatch: warning: --mem 4 has no unit, using 4G",
+        "qbatch: warning: --walltime 60 has no unit, using seconds (0:01:00)",
+    ]

@@ -151,6 +151,14 @@ def format_mem(mib):
     return f"{mib // 1024}G" if mib % 1024 == 0 else f"{mib}M"
 
 
+def format_hms(seconds, resolution=1):
+    """Write a walltime as H:MM:SS, rounded up to whole steps of resolution
+    seconds. Hours have no upper limit and there is no days field, because
+    PBS, SGE and Slurm all read 36:00:00 as 36 hours."""
+    seconds = -(-seconds // resolution) * resolution
+    return f"{seconds // 3600}:{seconds // 60 % 60:02d}:{seconds % 60:02d}"
+
+
 class Scheduler:
     """Base adapter. Holds the spec; methods read it when called, so
     changes the driver makes to the spec after construction are seen."""
@@ -162,6 +170,8 @@ class Scheduler:
     one_job_only = False
     # the command that takes a job script, for batch schedulers
     submit_command = None
+    # the scheduler rounds walltime up to whole steps of this many seconds
+    walltime_resolution = 1
 
     def __init__(self, spec):
         self.spec = spec
@@ -376,7 +386,9 @@ class PbsScheduler(Scheduler):
             or "",
             ppj=spec.ppj,
             o_array=use_array and f"-t 1-{num_jobs}" or "",
-            o_walltime=spec.walltime and f"-l walltime={spec.walltime}" or "",
+            o_walltime=spec.walltime_seconds
+            and f"-l walltime={format_hms(spec.walltime_seconds)}"
+            or "",
             o_dependencies=o_dependencies,
             o_options="\n#PBS ".join(spec.options),
             o_memopts=mem_string and f"-l {mem_string}" or "",
@@ -399,7 +411,9 @@ class SgeScheduler(Scheduler):
         return SGE_HEADER_TEMPLATE.format(
             o_ppj=(spec.ppj > 1) and f"-pe {spec.sge_pe} {spec.ppj}" or "",
             o_array=use_array and f"-t 1-{num_jobs}" or "",
-            o_walltime=spec.walltime and f"-l h_rt={spec.walltime}" or "",
+            o_walltime=spec.walltime_seconds
+            and f"-l h_rt={format_hms(spec.walltime_seconds)}"
+            or "",
             o_dependencies=(
                 spec.depend and "-hold_jid '" + "','".join(spec.depend) + "'" or ""
             ),
@@ -416,6 +430,7 @@ class SlurmScheduler(Scheduler):
     name = "slurm"
     required_binaries = ("sbatch", "squeue", "parallel")
     submit_command = "sbatch"
+    walltime_resolution = 60
 
     def find_dependencies(self):
         patterns = self.spec.depend
@@ -452,15 +467,7 @@ class SlurmScheduler(Scheduler):
 
     def directives(self, use_array, num_jobs, common):
         spec = self.spec
-        walltime = spec.walltime
         mem_string = self._mem_string()
-
-        if walltime and walltime.find(":") > 0:
-            o_walltime = f"--time={walltime}"
-        elif walltime:
-            o_walltime = f"--time={int(walltime) / 60:1.0f}"
-        else:
-            o_walltime = ""
 
         logfile = (
             use_array
@@ -473,7 +480,9 @@ class SlurmScheduler(Scheduler):
             o_ppj=(spec.ppj > 1) and f"--cpus-per-task={spec.ppj}" or "",
             logfile=logfile,
             o_array=use_array and f"--array=1-{num_jobs}" or "",
-            o_walltime=o_walltime,
+            o_walltime=spec.walltime_seconds
+            and "--time=" + format_hms(spec.walltime_seconds, self.walltime_resolution)
+            or "",
             o_dependencies="--dependency=afterok:" + ":".join(spec.depend_job_ids)
             if spec.depend_job_ids
             else "",

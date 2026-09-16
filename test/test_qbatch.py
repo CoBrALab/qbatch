@@ -289,6 +289,30 @@ def test_driver_does_not_mutate_the_callers_task_list(make_spec, tmp_path):
     assert tasks == ["# a comment\n", "echo hi\n"]
 
 
+@pytest.mark.parametrize(
+    "scheduler,walltime,warned",
+    [
+        ("slurm", "1:00:30", True),
+        ("slurm", "1:00:00", False),
+        ("pbs", "1:00:30", False),
+    ],
+)
+def test_driver_warns_when_the_scheduler_rounds_walltime(
+    make_spec, tmp_path, capsys, scheduler, walltime, warned
+):
+    qbatchDriver(
+        make_spec(
+            scheduler=scheduler,
+            walltime=walltime,
+            logdir=str(tmp_path / "logs"),
+            script_folder=str(tmp_path / "scripts"),
+            dry_run=True,
+        )
+    )
+    message = f"qbatch: warning: --walltime {walltime} rounded up to 1:01:00 for slurm"
+    assert (message in capsys.readouterr().err) is warned
+
+
 def test_dependency_errors_are_reported_the_same_way(make_spec, monkeypatch):
     def check_output(command):
         raise OSError("squeue exploded")
