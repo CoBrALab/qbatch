@@ -245,6 +245,21 @@ def test_run_qbatch_local_piped_commands_utf8():
     )
 
 
+def test_memory_warning_is_printed_once():
+    myenv["QBATCH_MEM"] = "4"
+    try:
+        p = command_pipe(
+            "qbatch -n -b slurm -N test_memory_warning_is_printed_once -- echo hi"
+        )
+        out, _ = p.communicate(b"")
+    finally:
+        del myenv["QBATCH_MEM"]
+    assert p.returncode == 0, out
+    assert out.decode("utf-8").count("--mem 4 has no unit, using 4G") == 1
+    with open(os.path.join(tempdir, "test_memory_warning_is_printed_once.0")) as f:
+        assert "#SBATCH --mem=4G\n" in f.read()
+
+
 # ------------------------------------------------------------------ driver
 
 

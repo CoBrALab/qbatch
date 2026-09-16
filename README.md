@@ -40,7 +40,7 @@ $ export QBATCH_PPJ=12                   # requested processors per job
 $ export QBATCH_CHUNKSIZE=$QBATCH_PPJ    # commands to run per job
 $ export QBATCH_CORES=$QBATCH_PPJ        # commonds to run in parallel per job
 $ export QBATCH_NODES=1                  # number of compute nodes to request for the job, typically for MPI jobs
-$ export QBATCH_MEM="0"                  # requested memory per job
+$ export QBATCH_MEM="none"               # requested memory per job (e.g. "4G")
 $ export QBATCH_MEMVARS="mem"            # memory request variable to set
 $ export QBATCH_SYSTEM="pbs"             # queuing system to use ("pbs", "sge","slurm", or "local")
 $ export QBATCH_NODES=1                  # (PBS-only) nodes to request per job
@@ -98,10 +98,12 @@ optional arguments:
   -N JOBNAME, --jobname JOBNAME
                         Set job name (defaults to name of command file, or
                         STDIN) (default: None)
-  --mem MEM             Memory required for each job (e.g. --mem 1G). This
-                        value will be set on each variable specified in
-                        --memvars. To not set any memory requirement, set this
-                        to 0 (default: 0)
+  --mem MEM             Memory required for each job, as a number and a unit
+                        (e.g. --mem 4G, --mem 1.5GB, --mem 512M). Units are K,
+                        M, G, T and P, with or without B, and are powers of
+                        1024. A number with no unit is GB. This value is set
+                        on each variable specified in --memvars. To not set
+                        any memory requirement, give 0 or none (default: None)
   -q QUEUE, --queue QUEUE
                         Name of queue to submit jobs to (defaults to no queue)
                         (default: None)
@@ -214,6 +216,31 @@ spec = qbatch.JobSpec(
 qbatch.qbatchDriver(spec)
 ```
 
+## Memory requests
+
+``--mem`` (and ``QBATCH_MEM``) takes a number and a unit: ``4G``, ``4gb``,
+``1.5G``, ``512M``, ``1T``. The units are K, M, G, T and P, with or without a
+trailing B (or iB), in upper or lower case, and all are powers of 1024. A
+number with no unit is GB. ``0`` or ``none`` requests no memory. qbatch writes
+the value the same way for every scheduler, as whole GiB or MiB with an
+uppercase unit (``4G``, ``1536M``), and stops with an error if it cannot read
+the value. It prints a warning when it assumes GB for a number with no unit,
+or when it rounds a value up to whole MiB.
+
+qbatch changes only how the value is written. What the value counts depends
+on the scheduler and on the variables in ``--memvars``:
+
+- Slurm: ``--mem`` is per node, and ``--mem-per-cpu`` is per CPU.
+- PBS/Torque: ``mem`` is for the whole job, and works for one node only. Use
+  ``pmem`` for each process.
+- SGE: ``h_vmem`` and ``s_vmem`` are multiplied by the number of slots, so
+  ``--ppj 8 --mem 16G --memvars h_vmem`` allows 128 GiB. A consumable
+  resource counts per slot when it is ``consumable YES``, and per job when it
+  is ``JOB``.
+
+To give a value that qbatch does not write, such as Slurm's ``--mem=0`` (all
+the memory on the node), use ``-o``.
+
 ## Very large task lists
 
 An array job has one script, and that script holds the whole task list. Each
@@ -253,6 +280,18 @@ rejects names it does not recognise instead of silently ignoring them.
 number of parallel commands) is the ppj value, so ``--ppj 8`` alone packs and
 runs 8 commands per job. Before 3.0 these fell back to ``QBATCH_PPJ`` but
 ignored ``--ppj``. Add ``-c 1 -j 1`` to keep the old result.
+
+``--mem`` has one format for all schedulers (see "Memory requests"). Check
+these before you upgrade:
+
+- A number with no unit is now GB. In 2.x, ``--mem 4096`` was 4096 bytes on
+  PBS and SGE and 4096 MiB on Slurm; now it is 4096 GiB, with a warning. Add
+  a unit, for example ``QBATCH_MEM=4096M``.
+- ``0G``, ``00`` and ``none`` now request no memory. In 2.x only ``0`` did,
+  and ``--mem 0G`` on Slurm requested all the memory on the node.
+- A value qbatch cannot read, such as ``4GiBs``, is now an error.
+- ``JobSpec.mem`` defaults to ``None``, not ``"0"``, and the parsed value is
+  in ``JobSpec.mem_mib``.
 
 Errors are now raised as ``qbatch.QbatchError`` rather than exiting the
 process, so a python caller can catch them. On the command line, an error

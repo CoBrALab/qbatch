@@ -109,6 +109,8 @@ def _read_task_list(spec):
 
 def qbatchDriver(spec):
     """Read the tasks, resolve dependencies, then generate and submit."""
+    for warning in spec.warnings:
+        print(warning, file=sys.stderr)
     task_list, job_name = _read_task_list(spec)
 
     # Drop commented out lines
@@ -206,9 +208,11 @@ def qbatchParser(args=None):
     parser.add_argument(
         "--mem",
         default=defaults.mem,
-        help="""Memory required for each job (e.g. --mem 1G).  This value will
-        be set on each variable specified in --memvars. To not set any memory
-        requirement, set this to 0""",
+        help="""Memory required for each job, as a number and a unit (e.g.
+        --mem 4G, --mem 1.5GB, --mem 512M). Units are K, M, G, T and P, with
+        or without B, and are powers of 1024. A number with no unit is GB.
+        This value is set on each variable specified in --memvars. To not set
+        any memory requirement, give 0 or none""",
     )
     parser.add_argument(
         "-q",

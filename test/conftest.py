@@ -15,7 +15,7 @@ def make_spec():
             "chunk_size": 1,
             "cores": "1",
             "ppj": 1,
-            "mem": "0",
+            "mem": None,
             "memvars": "mem",
             "queue": None,
             "nodes": 1,
