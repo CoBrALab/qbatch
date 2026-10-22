@@ -199,14 +199,23 @@ def int_or_percent(string):
     return string
 
 
-def compute_threads(ppj, ncores):
-    """Computes either number cores per job available"""
+def compute_threads(ppj, ncores, ncommands=None):
+    """Computes the number of threads available to each running command
+
+    ncommands is the number of commands in the job. When it is smaller than
+    ncores, only ncommands run at the same time, so each one gets a larger
+    share of the processors. The result is never less than 1.
+    """
     if not ppj:
         ppj = 1
     if ncores[-1] == '%':
-        return int(math.floor(ppj * float(ncores.strip('%')) / 100))
+        return max(1, int(math.floor(
+            int(ppj) * float(ncores.strip('%')) / 100)))
     else:
-        return int(ppj) // int(ncores)
+        running = int(ncores)
+        if ncommands:
+            running = min(running, int(ncommands))
+        return max(1, int(ppj) // max(1, running))
 
 
 def pbs_find_jobs(patterns):
@@ -523,7 +532,8 @@ def qbatchDriver(**kwargs):
                 'export THREADS_PER_COMMAND={0}'.format(
                     compute_threads(
                         kwargs.get('ppj'),
-                        ncores)),
+                        ncores,
+                        min(chunk_size, len(task_list)))),
                 'sed -n "$(( (${ARRAY_IND} - 1) * ${CHUNK_SIZE} + 1 )),'
                 '+$(( ${CHUNK_SIZE} - 1 ))p" << \'EOF\' | parallel -j${CORES}'
                 ' --tag --line-buffer --compress',
@@ -546,7 +556,7 @@ def qbatchDriver(**kwargs):
                     script_lines = [
                         header,
                         'export THREADS_PER_COMMAND={0}'.format(
-                            compute_threads(kwargs.get('ppj'), ncores)),
+                            compute_threads(kwargs.get('ppj'), ncores, 1)),
                         ''.join(task_list)]
                 else:
                     script_lines = [
@@ -556,7 +566,11 @@ def qbatchDriver(**kwargs):
                         ' exit 1; }',
                         'CORES={0}'.format(ncores),
                         'export THREADS_PER_COMMAND={0}'.format(
-                            compute_threads(kwargs.get('ppj'), ncores)),
+                            compute_threads(
+                                kwargs.get('ppj'),
+                                ncores,
+                                len(task_list[chunk * chunk_size:chunk *
+                                              chunk_size + chunk_size]))),
                         "parallel -j${CORES} --tag --line-buffer"
                         " --compress << \'EOF\'",
                         ''.join(task_list[chunk * chunk_size:chunk *
